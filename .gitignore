@@ -1,0 +1,5 @@
+# 忽略 model 文件夾
+/Kinmen_code/model/
+
+# 忽略 data 文件夾
+/Kinmen_code/data/
