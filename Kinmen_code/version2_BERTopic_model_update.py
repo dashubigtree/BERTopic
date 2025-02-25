@@ -23,7 +23,7 @@ with open(stopwords_file_path, encoding='utf-8') as f:
     stop_words = set([line.strip() for line in f])
 
 # 添加自定義高頻詞到停用詞
-additional_stopwords = {"海域", "海巡", "海警", "金門", "大陸", "台灣"}
+additional_stopwords = {"免责声明","文章描述","免责","删除","网络文章","旨在倡导","不良引导", "文章旨在","倡导社会","低俗","低俗不良","过程图片","图片","不良","来源于"}
 stop_words.update(additional_stopwords)
 
 # 加載自定義字典
