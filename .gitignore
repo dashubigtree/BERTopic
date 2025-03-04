@@ -1,5 +1,8 @@
 # 忽略 model 文件夾
 /Kinmen_code/model/
 
-# 忽略 data 文件夾
-/Kinmen_code/data/
+# 忽略 data 文件夾中大小大於 50MB 的文件
+/Kinmen_code/data/kinmen_output_split_by_period.csv
+/Kinmen_code/data/Kinmen_splitData_20250223_paragraph_new.csv
+/Kinmen_code/data/Kinmen_splitData_20250223_paragraph.csv
+/Kinmen_code/data/Kinmen_splitData_20250223_sentence.csv
