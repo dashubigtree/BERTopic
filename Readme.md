@@ -119,4 +119,108 @@ HDBSCAN：主要用於將向量進行密度分群，其運作流程為：
 
 ### 新問題
 目前從representative articles當中發現好像有些一樣的分段結果。可能是因為有些貼文有公版，所以在訓練的時候會顯示一樣的段落結果
+- 新增了一個python file: callOUt_representativeArticle.py，用來將representative article的結果輸出成txt檔案，方便我後續的分析。在這邊也多加入了自定義「顯示文章數量」，讓每個主題顯示的文章內容數量可以自行調整。
 
+
+# 0310 missions
+
+
+### four_categories_v1 模型特色
+- 在分類上有指定主題文章數量
+
+在 `four_categories_v1.py` 中，有幾個關鍵的設定來控制和克制主題分類的結果，主要體現在以下幾個方面：
+
+1. **HDBSCAN 參數設定**：
+   ```python
+   hdbscan_model = HDBSCAN(
+       min_cluster_size=35,    # 調整以獲得約20多個主題
+       min_samples=5,          # 增加樣本數以獲得更穩定的群集
+       metric='euclidean',
+       cluster_selection_method='eom',
+       prediction_data=True,
+       alpha=1.0               # 增加 alpha 值以產生更明顯的群集
+   )
+   ```
+   - `min_cluster_size=35`：控制每個主題至少需要包含 35 個文檔，這避免了過小的主題產生
+   - `min_samples=5`：增加樣本數以獲得更穩定的群集，減少噪音影響
+   - `alpha=1.0`：增加 alpha 值使群集更加明顯，有助於產生更清晰的主題邊界
+
+2. **BERTopic 模型參數**：
+   ```python
+   topic_model = BERTopic(
+       embedding_model=embedding_model,
+       verbose=True,
+       calculate_probabilities=True,
+       nr_topics=25,          # 明確指定約25個主題
+       umap_model=umap_model,
+       hdbscan_model=hdbscan_model,
+       vectorizer_model=vectorizer,
+       top_n_words=20,
+       min_topic_size=35,     # 與 HDBSCAN 的 min_cluster_size 保持一致
+       ctfidf_model=ctfidf_model,
+   )
+   ```
+   - `nr_topics=25`：明確限制主題數量約為 25 個
+   - `min_topic_size=35`：與 HDBSCAN 的 `min_cluster_size` 保持一致，確保每個主題有足夠的文檔
+
+3. **自定義層次化主題分類**：
+   ```python
+   def custom_hierarchical_topics(embeddings, topics):
+       # 排除雜訊主題 (-1)
+       mask = topics != -1
+       filtered_embeddings = embeddings[mask]
+       filtered_topics = topics[mask]
+       
+       # 使用 K-means 將主題分為4大類
+       kmeans = KMeans(n_clusters=4, random_state=42)
+       super_topics = kmeans.fit_predict(filtered_embeddings)
+       
+       # 創建主題到超主題的映射
+       topic_to_super_topic = {}
+       for topic, super_topic in zip(filtered_topics, super_topics):
+           topic_to_super_topic[topic] = super_topic
+       
+       # 將雜訊主題映射到 -1
+       topic_to_super_topic[-1] = -1
+       
+       return topic_to_super_topic
+   ```
+   - 這個函數強制將所有主題（除了雜訊主題）分為 4 個超主題
+   - 使用 K-means 算法確保這 4 個超主題的劃分是基於主題嵌入向量的相似性
+
+4. **ClassTfidfTransformer 設定**：
+   ```python
+   ctfidf_model = ClassTfidfTransformer(
+       seed_words=[
+           "條約", "防禦", "執法", "金門",
+           "兩岸", "事件", "協議", "海域",
+           "漁權", "漁業", "經濟", "台灣",
+           "中國", "海巡", "大陸", "國民黨"
+       ],
+       bm25_weighting=True,
+       reduce_frequent_words=True    
+   )
+   ```
+   - `seed_words`：提供種子詞彙引導主題形成，這些詞彙會影響主題的關鍵詞提取
+   - `bm25_weighting=True`：使用 BM25 加權方式，更好地識別主題特徵詞
+   - `reduce_frequent_words=True`：減少高頻詞的影響，避免常見詞主導主題
+
+5. **UMAP 降維參數**：
+   ```python
+   umap_model = UMAP(
+       n_neighbors=15,      # 增加鄰居數量以捕獲更多局部結構
+       n_components=2,      # 降為2維以便更好地可視化四大類
+       metric='cosine',
+       min_dist=0.05,       # 適中的最小距離
+       random_state=42      # 固定隨機種子以獲得可重複的結果
+   )
+   ```
+   - `n_neighbors=15`：增加鄰居數量以捕獲更多局部結構，有助於形成更穩定的主題
+   - `n_components=2`：降為 2 維有助於更好地可視化四大類
+   - `min_dist=0.05`：適中的最小距離，控制點之間的間隔
+
+6. **停用詞和噪音字元處理**：
+   - 定義了大量噪音字元和停用詞，確保這些不會影響主題分類
+   - 添加了自定義高頻詞到停用詞，如 `"免责声明","文章描述"` 等
+
+這些設定共同作用，確保主題分類結果具有一定的克制性和可解釋性，避免過度細分或過度合併主題，同時通過超主題的設定，將所有主題強制歸類為四大類。
