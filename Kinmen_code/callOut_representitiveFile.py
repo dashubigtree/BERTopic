@@ -1,12 +1,16 @@
 from bertopic import BERTopic
 import pandas as pd
+import os
 
 # 載入之前訓練的模型
-model_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/model/bertopic_four_categories_v1"
-topic_model = BERTopic.load(model_path)
+model_path = "./model/bertopic_four_categories_v1"
+print(f"加載模型路徑: {os.path.abspath(model_path)}")
+
+# 使用正確的方式從本地加載模型
+topic_model = BERTopic.load(model_path, embedding_model=None)
 
 # 讀取原始數據
-csv_file_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/data/Kinmen_splitData_20250223_paragraph_new.csv"
+csv_file_path = "./data/Kinmen_splitData_20250223_paragraph_new.csv"
 df = pd.read_csv(csv_file_path)
 
 # 獲取主題資訊

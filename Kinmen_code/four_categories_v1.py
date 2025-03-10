@@ -166,12 +166,25 @@ pio.templates.default = "presentation"
 # 視覺化結果保存
 visualization_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/visualization/four_categories_v1"
 
-# 1. 視覺化主題
-fig_topics = topic_model.visualize_topics(width=1200, height=1000)
+# 1. 視覺化主題 - 修改為包含文檔嵌入向量
+fig_topics = topic_model.visualize_topics(
+    width=1200, 
+    height=1000,
+    topics=list(range(len(topic_model.get_topic_info()) - 1)),  # 排除雜訊主題 -1
+    embeddings=embeddings,  # 添加嵌入向量
+    documents=texts,  # 添加文檔
+    reduced_embeddings=topic_model.umap_model_.embedding_  # 添加降維後的嵌入向量
+)
 fig_topics.write_html(f"{visualization_path}/topics_visualization.html")
 
-# 2. 視覺化文檔
-fig_docs = topic_model.visualize_documents(texts)
+# 2. 視覺化文檔 - 確保使用正確的嵌入向量
+fig_docs = topic_model.visualize_documents(
+    docs=texts,
+    embeddings=embeddings,
+    reduced_embeddings=topic_model.umap_model_.embedding_,
+    width=1200,
+    height=1000
+)
 fig_docs.write_html(f"{visualization_path}/documents_visualization.html")
 
 # 3. 視覺化主題層次結構
