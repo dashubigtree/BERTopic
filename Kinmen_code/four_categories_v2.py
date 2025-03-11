@@ -151,7 +151,7 @@ import os
 pio.templates.default = "presentation"
 
 # 確保視覺化目錄存在
-visualization_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/visualization/four_categories_v2"
+visualization_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTopic/Kinmen_code/visualization/four_categories_v2"
 os.makedirs(visualization_path, exist_ok=True)
 
 # 獲取主題資訊
@@ -173,17 +173,78 @@ reduced_embeddings = UMAP(
     random_state=42
 ).fit_transform(embeddings)
 
+# 在 visualize_documents 之前添加診斷代碼
+print("檢查輸入數據...")
+print(f"reduced_embeddings 形狀: {reduced_embeddings.shape}")
+print(f"topics 長度: {len(topics)}")
+print(f"texts 長度: {len(texts)}")
+print(f"topics 中的唯一值: {set(topics)}")
+print(f"reduced_embeddings 是否包含 NaN: {np.isnan(reduced_embeddings).any()}")
+
+# 檢查數據一致性
+if len(topics) != len(texts) or len(topics) != reduced_embeddings.shape[0]:
+    print("警告：數據長度不一致！")
+    print(f"topics: {len(topics)}, texts: {len(texts)}, embeddings: {reduced_embeddings.shape[0]}")
+
 # 2. 文檔視覺化 - 使用降維後的 embeddings
-fig_docs_original = topic_model.visualize_documents(
-    docs=texts,
-    reduced_embeddings=reduced_embeddings,  # 使用預先降維的 embeddings
-    topics=topics,
-    width=1200,          # 增加圖表寬度
-    height=800,          # 增加圖表高度
-    hide_document_hover=False,  # 顯示文檔懸停信息
-    hide_annotations=False      # 顯示註釋
-)
-fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+try:
+    print("嘗試生成視覺化...")
+    fig_docs_original = topic_model.visualize_documents(
+        docs=texts,
+        reduced_embeddings=reduced_embeddings,
+        topics=topics,
+        width=1200,
+        height=800,
+        hide_document_hover=True,
+        hide_annotations=True
+    )
+    print("視覺化生成成功！")
+    
+    # 檢查圖表對象
+    print(f"圖表類型: {type(fig_docs_original)}")
+    print(f"圖表數據: {fig_docs_original.data}")
+    
+    # 嘗試使用不同的顯示方式
+    try:
+        print("嘗試使用 plotly.offline 顯示...")
+        import plotly.offline as pyo
+        pyo.init_notebook_mode(connected=True)
+        pyo.iplot(fig_docs_original)
+    except Exception as e1:
+        print(f"plotly.offline 顯示失敗: {e1}")
+        
+        try:
+            print("嘗試使用 plotly.io 顯示...")
+            import plotly.io as pio
+            pio.renderers.default = 'browser'
+            fig_docs_original.show()
+        except Exception as e2:
+            print(f"plotly.io 顯示也失敗: {e2}")
+
+except Exception as e:
+    print(f"視覺化生成失敗: {e}")
+    print(f"錯誤類型: {type(e)}")
+    import traceback
+    print(f"詳細錯誤信息: {traceback.format_exc()}")
+
+# 添加預覽功能
+print("正在生成預覽...")
+import plotly.io as pio
+pio.renderers.default = 'browser'  # 設置預設渲染器為瀏覽器
+fig_docs_original.show()  # 這會在瀏覽器中打開預覽
+
+# 確認圖表內容
+print(f"圖表點數: {len(fig_docs_original.data[0].x)}")  # 檢查數據點數量
+print(f"圖表維度: {fig_docs_original.layout.width}x{fig_docs_original.layout.height}")  # 檢查圖表尺寸
+
+# 然後再儲存 HTML
+try:
+    print("正在儲存 HTML...")
+    fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+    print("HTML 儲存成功！")
+except Exception as e:
+    print(f"HTML 儲存失敗: {e}")
+
 
 # 3. 視覺化主題層次結構 (Hierarchical clustering) - 這是您要求的第三項
 fig_hierarchy = topic_model.visualize_hierarchy()
