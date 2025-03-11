@@ -123,8 +123,9 @@ HDBSCAN：主要用於將向量進行密度分群，其運作流程為：
 
 
 # 0310 missions
-
-
+- 要畫出docs的文章散點圖
+- 要研究具有時間變化的主題變化折線圖
+- 去統整出每個主題的文章數量占據總文章數量的比例
 ### four_categories_v1 模型特色
 - 在分類上有指定主題文章數量
 
@@ -224,3 +225,44 @@ HDBSCAN：主要用於將向量進行密度分群，其運作流程為：
    - 添加了自定義高頻詞到停用詞，如 `"免责声明","文章描述"` 等
 
 這些設定共同作用，確保主題分類結果具有一定的克制性和可解釋性，避免過度細分或過度合併主題，同時通過超主題的設定，將所有主題強制歸類為四大類。
+
+### 處理BERTopic當中的visualize document問題
+1. 在 BERTopic 模型中設置 embedding_model ：
+```python
+topic_model = BERTopic(
+    embedding_model=embedding_model,
+    # ... 其他參數 ...
+)
+ ```
+
+這一步是告訴 BERTopic 使用哪個模型來生成嵌入向量。這只是設置了模型的配置，還沒有實際執行嵌入向量的生成。
+
+2. 預先生成嵌入向量：
+```python
+embeddings = embedding_model.encode(texts, show_progress_bar=True)
+topics, probs = topic_model.fit_transform(texts, embeddings)
+ ```
+```
+
+這一步是實際執行嵌入向量的生成，並將生成好的向量傳給模型使用。這樣做的好處是：
+
+- 可以重複使用這些嵌入向量，而不需要重複計算
+- 可以更好地控制嵌入過程（例如顯示進度條）
+- 提高了代碼的效率，避免了模型內部重複計算嵌入向量
+如果不預先生成嵌入向量，而是直接使用：
+
+```python
+topics, probs = topic_model.fit_transform(texts)
+ ```
+```
+
+BERTopic 會在內部使用設置的 embedding_model 來生成嵌入向量，但這樣就無法重複使用這些向量，也無法顯示進度條。
+
+所以，目前的寫法是更好的實踐方式，不會造成重複計算的問題。
+
+# 0311 任務紀錄
+目前正在解決visualize_documents無法顯示文章的散點圖問題。
+已經確認在visualize_documents要提供的參數：docs= 在輸入主題模型的文字（在這邊提供texts就是最終輸入到BERTopic進行主題分類的文字，是經過切詞的文字；topics= 選擇要顯示哪幾個編號的主題；embedding= 就是提供docs經過同樣embedding_model轉換後的結果），接著後續要在視覺化的時候就會直接使用topic_model(也就是我們前面設定好的BERTopic model)的UMAP降維；reduced_embedding= 自己進行UMAP來降成2D。
+
+但是現在我就算重新確認這樣參數之後，我還是無法顯示視覺化的結果。本來以為和文章的數量有關，但是8789篇的文章數量依該也是沒問題。就算有問題，我也已經將需要顯示的topic數量降低到2的時候也還是無法正常顯示出文章的散點圖。
+就算我自己增加reduced_embedding，也還是無法正常顯示文章的散點圖。
