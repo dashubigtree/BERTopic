@@ -241,7 +241,6 @@ topic_model = BERTopic(
 ```python
 embeddings = embedding_model.encode(texts, show_progress_bar=True)
 topics, probs = topic_model.fit_transform(texts, embeddings)
- ```
 ```
 
 這一步是實際執行嵌入向量的生成，並將生成好的向量傳給模型使用。這樣做的好處是：
@@ -254,7 +253,7 @@ topics, probs = topic_model.fit_transform(texts, embeddings)
 ```python
 topics, probs = topic_model.fit_transform(texts)
  ```
-```
+
 
 BERTopic 會在內部使用設置的 embedding_model 來生成嵌入向量，但這樣就無法重複使用這些向量，也無法顯示進度條。
 
@@ -266,3 +265,8 @@ BERTopic 會在內部使用設置的 embedding_model 來生成嵌入向量，但
 
 但是現在我就算重新確認這樣參數之後，我還是無法顯示視覺化的結果。本來以為和文章的數量有關，但是8789篇的文章數量依該也是沒問題。就算有問題，我也已經將需要顯示的topic數量降低到2的時候也還是無法正常顯示出文章的散點圖。
 就算我自己增加reduced_embedding，也還是無法正常顯示文章的散點圖。
+
+在另一台電腦執行此指令可以安裝yml檔案中的套件
+```bash
+conda env create -f environment.yml
+```
