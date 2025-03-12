@@ -20,7 +20,7 @@ def clean_text(text, noise_chars):
     return re.sub(noise_pattern, "", text)
 
 # 讀取停用詞並添加自定義高頻詞
-stopwords_file_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/data/stop_words.txt"
+stopwords_file_path = "./data/stop_words.txt"
 with open(stopwords_file_path, encoding='utf-8') as f:
     stop_words = set([line.strip() for line in f])
 
@@ -29,7 +29,7 @@ additional_stopwords = {"免责声明","文章描述","免责","删除","网络�
 stop_words.update(additional_stopwords)
 
 # 加載自定義字典
-jieba.load_userdict("/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/data/jieba.dict.utf8.txt")
+jieba.load_userdict("./data/jieba.dict.utf8.txt")
 
 def preprocess_text(text):
     tokens = jieba.lcut(text)
@@ -41,7 +41,7 @@ def preprocess_text(text):
 print("開始資料處理...")
 
 # 讀取和處理數據的部分保持不變
-csv_file_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/data/Kinmen_splitData_20250223_paragraph_new.csv"
+csv_file_path = "./data/Kinmen_splitData_20250223_paragraph_new.csv"
 df = pd.read_csv(csv_file_path)
 print(f'總資料筆數: {len(df)}')
 print(f'空字串數量: {(df["content"] == "").sum()}')
@@ -133,7 +133,7 @@ topics, probs = topic_model.fit_transform(texts, embeddings)
 
 
 # 儲存模型
-model_save_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/model/bertopic_four_categories_v2"
+model_save_path = "./model/bertopic_four_categories_v2"
 topic_model.save(model_save_path)
 print(f"模型已儲存至: {model_save_path}")
 
@@ -151,7 +151,7 @@ import os
 pio.templates.default = "presentation"
 
 # 確保視覺化目錄存在
-visualization_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTopic/Kinmen_code/visualization/four_categories_v2"
+visualization_path = "./visualization/four_categories_v2"
 os.makedirs(visualization_path, exist_ok=True)
 
 # 獲取主題資訊
@@ -276,14 +276,14 @@ print("\n主題分布概況：")
 print(topic_info)
 
 # 1. 將 topic_info 的 print 資訊儲存到指定路徑
-topic_info_save_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/results/four_categories_v2/topic_info.txt"
+topic_info_save_path = "./results/four_categories_v2/topic_info.txt"
 with open(topic_info_save_path, "w", encoding="utf-8") as f:
     f.write("主題分布概況：\n")
     f.write(topic_info.to_string())
 print(f"主題資訊已保存至: {topic_info_save_path}")
 
 # 2. 將各主題的代表性文章原始內容列出來
-representative_docs_save_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/results/four_categories_v2/representative_docs.txt"
+representative_docs_save_path = "./results/four_categories_v2/representative_docs.txt"
 with open(representative_docs_save_path, "w", encoding="utf-8") as f:
     for topic in topic_info['Topic'].tolist():
         if topic == -1:  # 跳過雜訊主題
@@ -310,7 +310,7 @@ df_with_topics = df.copy()
 df_with_topics['topic'] = topics  # 添加主題標籤
 
 # 保存到新的 CSV 文件
-csv_with_topics_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/results/four_categories_v2/Kinmen_splitData_with_topics.csv"
+csv_with_topics_path = "./results/four_categories_v2/Kinmen_splitData_with_topics.csv"
 df_with_topics.to_csv(csv_with_topics_path, index=False, encoding="utf-8-sig")
 print(f"已將分類結果標示在原始 CSV 文件中，保存至: {csv_with_topics_path}")
 
