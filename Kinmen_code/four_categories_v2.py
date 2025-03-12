@@ -1,3 +1,4 @@
+# 在文件開頭的導入部分添加以下內容
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 from umap import UMAP
@@ -10,6 +11,8 @@ from tqdm import tqdm
 import jieba
 from bertopic.vectorizers import ClassTfidfTransformer
 import numpy as np
+import plotly.express as px  # 添加這行
+import plotly.io as pio      # 這行已經存在，不需要重複添加
 
 
 # 定義噪音字元集合
@@ -76,12 +79,12 @@ umap_model = UMAP(
 
 # 調整 HDBSCAN 參數以產生約20多個主題
 hdbscan_model = HDBSCAN(
-    min_cluster_size=35,    # 調整以獲得約20多個主題
+    min_cluster_size=20,    # 調整以獲得約20多個主題
     min_samples=5,          # 增加樣本數以獲得更穩定的群集
     metric='euclidean',
     cluster_selection_method='eom',
     prediction_data=True,
-    alpha=1.0               # 增加 alpha 值以產生更明顯的群集
+    alpha=0.5               # 增加 alpha 值以產生更明顯的群集
 )
 
 vectorizer = CountVectorizer(
@@ -205,23 +208,6 @@ try:
     # 檢查圖表對象
     print(f"圖表類型: {type(fig_docs_original)}")
     print(f"圖表數據: {fig_docs_original.data}")
-    
-    # 嘗試使用不同的顯示方式
-    try:
-        print("嘗試使用 plotly.offline 顯示...")
-        import plotly.offline as pyo
-        pyo.init_notebook_mode(connected=True)
-        pyo.iplot(fig_docs_original)
-    except Exception as e1:
-        print(f"plotly.offline 顯示失敗: {e1}")
-        
-        try:
-            print("嘗試使用 plotly.io 顯示...")
-            import plotly.io as pio
-            pio.renderers.default = 'browser'
-            fig_docs_original.show()
-        except Exception as e2:
-            print(f"plotly.io 顯示也失敗: {e2}")
 
 except Exception as e:
     print(f"視覺化生成失敗: {e}")
@@ -232,8 +218,6 @@ except Exception as e:
 # 添加預覽功能
 print("正在生成預覽...")
 import plotly.io as pio
-pio.renderers.default = 'browser'  # 設置預設渲染器為瀏覽器
-fig_docs_original.show()  # 這會在瀏覽器中打開預覽
 
 # 確認圖表內容
 print(f"圖表點數: {len(fig_docs_original.data[0].x)}")  # 檢查數據點數量
@@ -252,10 +236,6 @@ except Exception as e:
 fig_hierarchy = topic_model.visualize_hierarchy()
 fig_hierarchy.write_html(f"{visualization_path}/hierarchical_clustering.html")
 
-# 4. Topic Probability Distribution - 這是您要求的第四項
-# 需要使用主題的概率分布來生成這個視覺化
-fig_prob_dist = topic_model.visualize_distribution(probs[0], min_probability=0.015)
-fig_prob_dist.write_html(f"{visualization_path}/topic_probability_distribution.html")
 
 # 其他有用的視覺化
 # 5. 視覺化主題相似性熱圖
@@ -322,4 +302,103 @@ for topic in topic_info.head()['Topic'].tolist():
     if topic != -1:  # 排除雜訊主題
         print(f"\n主題 {topic}:")
         print(topic_model.get_topic(topic))
+
+# 在其他視覺化之後，添加 topics over time 的視覺化
+print("生成主題隨時間變化圖...")
+
+# 假設您的 DataFrame 中有一個時間列，名為 'date'
+# 如果沒有，需要先從現有數據中提取或創建時間資訊
+if 'date' not in df.columns:
+    print("正在從數據中提取日期信息...")
+    # 如果需要從其他列提取日期，請相應修改
+    df['date'] = pd.to_datetime(df['date_column'])  # 替換 'date_column' 為實際的列名
+
+# 獲取時間序列數據
+timestamps = df['date'].tolist()
+
+# 生成主題隨時間變化圖
+topics_over_time = topic_model.topics_over_time(
+    docs=texts,
+    timestamps=timestamps,
+    global_tuning=True,
+    evolution_tuning=True,
+    nr_bins=20
+)
+
+# 創建視覺化
+fig_topics_over_time = topic_model.visualize_topics_over_time(
+    topics_over_time,
+    top_n_topics=10,
+    width=1200,
+    height=600
+)
+
+# 保存視覺化結果
+fig_topics_over_time.write_html(f"{visualization_path}/topics_over_time.html")
+print(f"主題隨時間變化圖已保存至: {visualization_path}/topics_over_time.html")
+
+print("\n生成主題分布統計...")
+# 計算主題分布（不含雜訊主題）
+df_filtered = df_with_topics[df_with_topics['topic'] != -1]
+topic_counts = df_filtered['topic'].value_counts()
+total_docs = len(df_filtered)
+topic_percentages = (topic_counts / total_docs * 100).round(2)
+
+# 創建數據框，包含主題編號、百分比和關鍵字
+plot_df = pd.DataFrame({
+    'Topic': topic_counts.index,
+    'Percentage': topic_percentages.values
+})
+
+# 添加關鍵字信息
+plot_df['Keywords'] = plot_df['Topic'].apply(lambda x: 
+    ' | '.join([f"{word}({score:.3f})" for word, score in topic_model.get_topic(x)[:5]])
+)
+
+# 排序
+plot_df = plot_df.sort_values('Topic')
+
+# 創建柱狀圖
+fig = px.bar(
+    plot_df,
+    x='Topic',
+    y='Percentage',
+    title='主題分布比例 (不含雜訊主題)',
+    labels={'Topic': '主題編號', 'Percentage': '占比 (%)'},
+    text=plot_df['Percentage'].apply(lambda x: f'{x:.2f}%'),
+    custom_data=['Keywords']  # 添加關鍵字數據用於hover
+)
+
+# 更新圖表樣式和hover模板
+fig.update_traces(
+    textposition='outside',
+    marker_color='lightblue',
+    hovertemplate="主題 %{x}<br>占比: %{y:.2f}%<br>關鍵字:<br>%{customdata}<extra></extra>"
+)
+
+fig.update_layout(
+    width=1200,
+    height=600,
+    showlegend=False,
+    title_x=0.5,
+    title_font_size=20,
+    hoverlabel=dict(
+        bgcolor="white",
+        font_size=12,
+        font_family="Arial"
+    )
+)
+
+# 保存圖表
+fig.write_html(f"{visualization_path}/topic_distribution_without_noise.html")
+print(f"主題分布圖已保存至: {visualization_path}/topic_distribution_without_noise.html")
+
+# 打印詳細的統計信息
+print("\n主題分布統計（含前五關鍵字）：")
+print("=" * 100)
+for _, row in plot_df.iterrows():
+    print(f"主題 {row['Topic']:2d}: {row['Percentage']:5.2f}% ({topic_counts[row['Topic']]} 篇文章)")
+    print(f"關鍵字: {row['Keywords']}")
+    print("-" * 100)
+
 

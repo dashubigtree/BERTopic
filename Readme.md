@@ -273,3 +273,4 @@ conda env create -f environment.yml
 
 # 0312 progress
 我嘗試在大一點的ram去執行看看，可是最終圖片還是出不來。
+目前已經完成各主題的比例以及topic over time
