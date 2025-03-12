@@ -116,6 +116,7 @@ topic_model = BERTopic(
     top_n_words=20,
     min_topic_size=35,     # 與 HDBSCAN 的 min_cluster_size 保持一致
     ctfidf_model=ctfidf_model,
+    language= "chinese"
 )
 
 
@@ -148,7 +149,8 @@ print(f"文本數量: {len(texts)}")
 print("生成視覺化結果...")
 import plotly.io as pio
 import os
-pio.templates.default = "presentation"
+pio.renderers.default = "browser"  # 尝试使用浏览器渲染器
+pio.templates.default = "plotly"   #默認模板
 
 # 確保視覺化目錄存在
 visualization_path = "./visualization/four_categories_v2"
@@ -195,8 +197,8 @@ try:
         topics=topics,
         width=1200,
         height=800,
-        hide_document_hover=True,
-        hide_annotations=True
+        hide_document_hover=False,
+        hide_annotations=False
     )
     print("視覺化生成成功！")
     

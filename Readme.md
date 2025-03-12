@@ -268,6 +268,7 @@ BERTopic 會在內部使用設置的 embedding_model 來生成嵌入向量，但
 
 在另一台電腦執行此指令可以安裝yml檔案中的套件
 ```bash
+conda env create -f environment.yml
 ```
 
 # 0312 progress
