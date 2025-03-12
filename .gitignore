@@ -8,3 +8,4 @@
 /Kinmen_code/data/Kinmen_splitData_20250223_sentence.csv
 /Kinmen_code/results/four_categories_v1/Kinmen_splitData_with_topics.csv
 /Kinmen_code/results/four_categories_v2/Kinmen_splitData_with_topics.csv
+/Kinmen_code/results/*/Kinmen_splitData_with_topics.csv  # 添加通配符規則，匹配所有版本的結果
