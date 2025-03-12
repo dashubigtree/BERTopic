@@ -28,7 +28,11 @@ with open(stopwords_file_path, encoding='utf-8') as f:
     stop_words = set([line.strip() for line in f])
 
 # 添加自定義高頻詞到停用詞
-additional_stopwords = {"免责声明","文章描述","免责","删除","网络文章","旨在倡导","不良引导", "文章旨在","倡导社会","低俗","低俗不良","过程图片","图片","不良","来源于"}
+additional_stopwords = {
+    "免责声明","文章描述","免责","删除","网络文章","旨在倡导","不良引导", "文章旨在","倡导社会","低俗","低俗不良","过程图片",
+    "图片","不良","来源于","口感","复盆子","阅读原文","阅读","原文","版权","文章旨在","文章","cctv4","上方cctv4","cctv4 关注","点击上方","上方",
+    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧"
+    }
 stop_words.update(additional_stopwords)
 
 # 加載自定義字典
@@ -178,59 +182,177 @@ reduced_embeddings = UMAP(
     random_state=42
 ).fit_transform(embeddings)
 
-# 在 visualize_documents 之前添加診斷代碼
-print("檢查輸入數據...")
-print(f"reduced_embeddings 形狀: {reduced_embeddings.shape}")
-print(f"topics 長度: {len(topics)}")
-print(f"texts 長度: {len(texts)}")
-print(f"topics 中的唯一值: {set(topics)}")
-print(f"reduced_embeddings 是否包含 NaN: {np.isnan(reduced_embeddings).any()}")
+# 在 visualize_documents 之前添加詳細的檢查
+# 在文件開頭添加 logging 相關設置
+import logging
+import os
 
-# 檢查數據一致性
-if len(topics) != len(texts) or len(topics) != reduced_embeddings.shape[0]:
-    print("警告：數據長度不一致！")
-    print(f"topics: {len(topics)}, texts: {len(texts)}, embeddings: {reduced_embeddings.shape[0]}")
+# 設置日誌目錄
+log_dir = "./visualization/four_categories_v2/log"
+os.makedirs(log_dir, exist_ok=True)
+
+# 在配置日誌之前，先清空日誌文件
+with open(f"{log_dir}/data_check.log", 'w', encoding='utf-8') as f:
+    f.write('')  # 清空文件
+
+# 然後再配置日誌
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f"{log_dir}/data_check.log", encoding='utf-8'),
+        logging.StreamHandler()  # 同時輸出到控制台
+    ]
+)
+
+# 修改檢查部分的代碼
+print("\n=== 資料準備檢查 ===")
+logging.info("=== 開始資料準備檢查 ===")
+
+# 1. 檢查文檔數據
+logging.info("1. 文檔檢查:")
+logging.info(f"- 文檔數量: {len(texts)}")
+logging.info(f"- 文檔類型: {type(texts)}")
+logging.info(f"- 文檔樣本: {texts[0][:100]}...")
+
+# 2. 檢查降維後的嵌入向量
+logging.info("\n2. 降維嵌入向量檢查:")
+logging.info(f"- 向量形狀: {reduced_embeddings.shape}")
+logging.info(f"- 向量類型: {type(reduced_embeddings)}")
+logging.info(f"- 是否包含 NaN: {np.isnan(reduced_embeddings).any()}")
+logging.info(f"- 是否包含 Inf: {np.isinf(reduced_embeddings).any()}")
+logging.info(f"- 數值範圍: [{reduced_embeddings.min():.2f}, {reduced_embeddings.max():.2f}]")
+
+# 3. 檢查主題標籤
+logging.info("\n3. 主題標籤檢查:")
+logging.info(f"- 標籤數量: {len(topics)}")
+logging.info(f"- 唯一主題數: {len(set(topics))}")
+logging.info(f"- 主題分布: {pd.Series(topics).value_counts().to_string()}")
+
+# 4. 檢查數據一致性
+logging.info("\n4. 數據一致性檢查:")
+lengths_match = len(texts) == len(topics) == reduced_embeddings.shape[0]
+logging.info(f"- 所有數據長度是否匹配: {lengths_match}")
+if not lengths_match:
+    logging.warning(f"  - 文檔數量: {len(texts)}")
+    logging.warning(f"  - 主題數量: {len(topics)}")
+    logging.warning(f"  - 嵌入向量數量: {reduced_embeddings.shape[0]}")
+
+# 如果檢查通過，繼續執行 visualize_documents
+if lengths_match and not np.isnan(reduced_embeddings).any() and not np.isinf(reduced_embeddings).any():
+    logging.info("\n✓ 所有檢查通過，可以進行視覺化")
+else:
+    logging.error("\n⚠ 警告：數據可能有問題，請檢查上述信息")
 
 # 2. 文檔視覺化 - 使用降維後的 embeddings
+# 修改視覺化文檔的部分
 try:
-    print("嘗試生成視覺化...")
+    logging.info("嘗試生成視覺化...")
+    
+    # 方法1：使用 BERTopic 的 visualize_documents，但增加更多控制參數
     fig_docs_original = topic_model.visualize_documents(
         docs=texts,
         reduced_embeddings=reduced_embeddings,
         topics=topics,
         width=1200,
         height=800,
-        hide_document_hover=False,
-        hide_annotations=False
+        hide_document_hover=True,
+        hide_annotations=True,
+        # 關鍵參數：確保顯示所有點
+        sample=1.0,  # 顯示100%的數據點
+        title="文檔主題分布圖 (所有文檔)"
     )
-    print("視覺化生成成功！")
     
-    # 檢查圖表對象
-    print(f"圖表類型: {type(fig_docs_original)}")
-    print(f"圖表數據: {fig_docs_original.data}")
-
-except Exception as e:
-    print(f"視覺化生成失敗: {e}")
-    print(f"錯誤類型: {type(e)}")
-    import traceback
-    print(f"詳細錯誤信息: {traceback.format_exc()}")
-
-# 添加預覽功能
-print("正在生成預覽...")
-import plotly.io as pio
-
-# 確認圖表內容
-print(f"圖表點數: {len(fig_docs_original.data[0].x)}")  # 檢查數據點數量
-print(f"圖表維度: {fig_docs_original.layout.width}x{fig_docs_original.layout.height}")  # 檢查圖表尺寸
-
-# 然後再儲存 HTML
-try:
-    print("正在儲存 HTML...")
+    # 更新圖表布局和標記樣式，使點更明顯
+    fig_docs_original.update_layout(
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="right",
+            x=0.99
+        ),
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    
+    # 增加點的大小和不透明度
+    fig_docs_original.update_traces(
+        marker=dict(size=7, opacity=0.8),  # 增加大小和不透明度
+        selector=dict(mode='markers')
+    )
+    
+    logging.info("視覺化生成成功！")
     fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
-    print("HTML 儲存成功！")
+    
+    # 方法2：創建一個備用的簡化版本，確保所有點都顯示
+    logging.info("創建備用視覺化...")
+    
+    # 創建數據框
+    viz_df = pd.DataFrame({
+        'x': reduced_embeddings[:, 0],
+        'y': reduced_embeddings[:, 1],
+        'topic': [str(t) for t in topics],  # 將主題轉換為字符串
+        'text': texts
+    })
+    
+    # 使用 plotly express 創建散點圖
+    fig_backup = px.scatter(
+        viz_df,
+        x='x',
+        y='y',
+        color='topic',
+        hover_data=['text'],
+        title='文檔主題分布圖（備用方案，顯示所有點）',
+        opacity=0.8,
+        color_discrete_sequence=px.colors.qualitative.Plotly,  # 使用更鮮明的顏色
+        width=1200,
+        height=800
+    )
+    
+    # 更新標記大小
+    fig_backup.update_traces(marker=dict(size=7))
+    
+    # 保存備用視覺化結果
+    fig_backup.write_html(f"{visualization_path}/documents_visualization_backup.html")
+    logging.info("備用視覺化完成")
+    
+    # 方法3：創建一個非交互式的靜態圖像版本
+    logging.info("創建靜態圖像版本...")
+    
+    # 保存為靜態圖像
+    fig_backup.write_image(f"{visualization_path}/documents_visualization_static.png", 
+                          width=1200, height=800, scale=2)  # scale=2 提高分辨率
+    logging.info("靜態圖像版本完成")
+    
 except Exception as e:
-    print(f"HTML 儲存失敗: {e}")
-
+    logging.error(f"視覺化生成失敗: {e}")
+    logging.error(f"錯誤類型: {type(e)}")
+    import traceback
+    logging.error(f"詳細錯誤信息: {traceback.format_exc()}")
+    
+    # 使用備用視覺化方案
+    logging.info("使用備用視覺化方案...")
+    try:
+        viz_df = pd.DataFrame({
+            'x': reduced_embeddings[:, 0],
+            'y': reduced_embeddings[:, 1],
+            'topic': topics,
+            'text': texts
+        })
+        
+        fig_backup = px.scatter(
+            viz_df,
+            x='x',
+            y='y',
+            color='topic',
+            hover_data=['text'],
+            title='文檔主題分布圖（備用方案）'
+        )
+        
+        fig_backup.write_html(f"{visualization_path}/documents_visualization_backup.html")
+        logging.info("備用視覺化完成")
+    except Exception as e:
+        logging.error(f"備用視覺化也失敗了: {e}")
 
 # 3. 視覺化主題層次結構 (Hierarchical clustering) - 這是您要求的第三項
 fig_hierarchy = topic_model.visualize_hierarchy()
