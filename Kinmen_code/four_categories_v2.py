@@ -13,10 +13,10 @@ from bertopic.vectorizers import ClassTfidfTransformer
 import numpy as np
 import plotly.express as px  # 添加這行
 import plotly.io as pio      # 這行已經存在，不需要重複添加
-
+import traceback
 
 # 定義噪音字元集合
-noise_chars = {'zvx','\U0001F48E', '。', '▲', '△', '\U0001F50D', '？', '—', '<', '∶', '\\r', '；', '✦', '\\u200c', '️', '－', '℃', '‖', '!', '「', '→', '/', '║', '」', '@', '，', '?', "\"", '○', '）', '『', '．', '\U0001F449', '】', '\U0001F31F', '=', '\U0001F447', '‰', '【', ';', '#', ')', '：', '\\u200d', '❖', '~', ']', '%', '·', '↑', '（', '〕', '☆', '※', '&', '•', '\U0001F44D', '>', '／', '▌', '–', '↓', '[', ''', ':', '《', '▎', '\U0001F91D', '©', '+', '\U0001F30A', '\\xa0', '\\n', '◇', ',', '◎', '…', '(', '〔', '\\\\', '\"', '■', '｜', '─', '\\u200b', '-', '●', '\"', '▊', '、', '︱', ''', '*', '⭐', '》', '％', '！', '〉', '|', '▼', '\U0001F446', '\U0001F3E1', '°', '\\t', '』', '〈', '～', '◆', '.', '⬆', '\"'}
+noise_chars = {'zvx','\U0001F48E', '。', '▲', '△', '\U0001F50D', '？', '—', '<', '∶', '\\r', '；', '✦', '\\u200c', '️', '－', '℃', '‖', '!', '「', '→', '/', '║', '」', '@', '，', '?', "\"", '○', '）', '『', '．', '\U0001F449', '】', '\U0001F31F', '=', '\U0001F447', '‰', '【', ';', '#', ')', '：', '\\u200d','\u200d', '❖', '~', ']', '%', '·', '↑', '（', '〕', '☆', '※', '&', '•', '\U0001F44D', '>', '／', '▌', '–', '↓', '[', ''', ':', '《', '▎', '\U0001F91D', '©', '+', '\U0001F30A', '\\xa0', '\\n', '◇', ',', '◎', '…', '(', '〔', '\\\\', '\"', '■', '｜', '─', '\\u200b', '-', '●', '\"', '▊', '、', '︱', ''', '*', '⭐', '》', '％', '！', '〉', '|', '▼', '\U0001F446', '\U0001F3E1', '°', '\\t', '』', '〈', '～', '◆', '.', '⬆', '\"'}
 
 def clean_text(text, noise_chars):
     noise_pattern = f"[{''.join(re.escape(char) for char in noise_chars)}]"
@@ -30,8 +30,8 @@ with open(stopwords_file_path, encoding='utf-8') as f:
 # 添加自定義高頻詞到停用詞
 additional_stopwords = {
     "免责声明","文章描述","免责","删除","网络文章","旨在倡导","不良引导", "文章旨在","倡导社会","低俗","低俗不良","过程图片",
-    "图片","不良","来源于","口感","复盆子","阅读原文","阅读","原文","版权","文章旨在","文章","cctv4","上方cctv4","cctv4 关注","点击上方","上方",
-    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧"
+    "图片","不良","来源于","口感","复盆子","阅读原文","阅读","原文","版权","文章旨在","文章","CCTV4","cctv4","上方cctv4","cctv4 关注","点击上方","上方",
+    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧","白酒","一瓶","小编","香肠","购买"
     }
 stop_words.update(additional_stopwords)
 
@@ -83,7 +83,7 @@ umap_model = UMAP(
 
 # 調整 HDBSCAN 參數以產生約20多個主題
 hdbscan_model = HDBSCAN(
-    min_cluster_size=20,    # 調整以獲得約20多個主題
+    min_cluster_size=35,    # 調整以獲得約20多個主題
     min_samples=5,          # 增加樣本數以獲得更穩定的群集
     metric='euclidean',
     cluster_selection_method='eom',
@@ -92,12 +92,12 @@ hdbscan_model = HDBSCAN(
 )
 
 vectorizer = CountVectorizer(
-    ngram_range=(1, 2),
+    ngram_range=(1, 1),
     stop_words=None,
     max_features=15000,
     max_df=0.9,
     min_df=3
-)
+    )
 
 # 修改 ClassTfidfTransformer 的設置
 ctfidf_model = ClassTfidfTransformer(
@@ -121,9 +121,8 @@ topic_model = BERTopic(
     hdbscan_model=hdbscan_model,
     vectorizer_model=vectorizer,
     top_n_words=20,
-    min_topic_size=35,     # 與 HDBSCAN 的 min_cluster_size 保持一致
+    min_topic_size=20,     # 與 HDBSCAN 的 min_cluster_size 保持一致
     ctfidf_model=ctfidf_model,
-    language= "chinese"
 )
 
 
@@ -136,9 +135,7 @@ print(f"嵌入向量形狀: {embeddings.shape}")
 
 # 訓練模型時傳入嵌入向量
 print("開始訓練模型...")
-topics, probs = topic_model.fit_transform(texts, embeddings)
-
-
+topics, _ = topic_model.fit_transform(texts, embeddings)
 
 # 儲存模型
 model_save_path = "./model/bertopic_four_categories_v2"
@@ -173,14 +170,13 @@ fig_intertopic.write_html(f"{visualization_path}/intertopic_distance_map.html")
 
 
 # 先進行降維處理
-print("進行文檔降維...")
-reduced_embeddings = UMAP(
-    n_neighbors=15,
-    n_components=2,
-    min_dist=0.1,        # 增加最小距離
-    metric='cosine',
-    random_state=42
-).fit_transform(embeddings)
+# print("進行文檔降維...")
+# reduced_embeddings = UMAP(
+#     n_neighbors=15,
+#     n_components=2,
+#     min_dist=0.1,        
+#     metric='cosine',
+# ).fit_transform(embeddings)
 
 # 在 visualize_documents 之前添加詳細的檢查
 # 在文件開頭添加 logging 相關設置
@@ -216,12 +212,19 @@ logging.info(f"- 文檔類型: {type(texts)}")
 logging.info(f"- 文檔樣本: {texts[0][:100]}...")
 
 # 2. 檢查降維後的嵌入向量
+# logging.info("\n2. 降維嵌入向量檢查:")
+# logging.info(f"- 向量形狀: {reduced_embeddings.shape}")
+# logging.info(f"- 向量類型: {type(reduced_embeddings)}")
+# logging.info(f"- 是否包含 NaN: {np.isnan(reduced_embeddings).any()}")
+# logging.info(f"- 是否包含 Inf: {np.isinf(reduced_embeddings).any()}")
+# logging.info(f"- 數值範圍: [{reduced_embeddings.min():.2f}, {reduced_embeddings.max():.2f}]")
+
 logging.info("\n2. 降維嵌入向量檢查:")
-logging.info(f"- 向量形狀: {reduced_embeddings.shape}")
-logging.info(f"- 向量類型: {type(reduced_embeddings)}")
-logging.info(f"- 是否包含 NaN: {np.isnan(reduced_embeddings).any()}")
-logging.info(f"- 是否包含 Inf: {np.isinf(reduced_embeddings).any()}")
-logging.info(f"- 數值範圍: [{reduced_embeddings.min():.2f}, {reduced_embeddings.max():.2f}]")
+logging.info(f"- 向量形狀: {embeddings.shape}")
+logging.info(f"- 向量類型: {type(embeddings)}")
+logging.info(f"- 是否包含 NaN: {np.isnan(embeddings).any()}")
+logging.info(f"- 是否包含 Inf: {np.isinf(embeddings).any()}")
+logging.info(f"- 數值範圍: [{embeddings.min():.2f}, {embeddings.max():.2f}]")
 
 # 3. 檢查主題標籤
 logging.info("\n3. 主題標籤檢查:")
@@ -229,60 +232,117 @@ logging.info(f"- 標籤數量: {len(topics)}")
 logging.info(f"- 唯一主題數: {len(set(topics))}")
 logging.info(f"- 主題分布: {pd.Series(topics).value_counts().to_string()}")
 
+# # 4. 檢查數據一致性
+# logging.info("\n4. 數據一致性檢查:")
+# lengths_match = len(texts) == len(topics) == reduced_embeddings.shape[0]
+# logging.info(f"- 所有數據長度是否匹配: {lengths_match}")
+# if not lengths_match:
+#     logging.warning(f"  - 文檔數量: {len(texts)}")
+#     logging.warning(f"  - 主題數量: {len(topics)}")
+#     logging.warning(f"  - 嵌入向量數量: {reduced_embeddings.shape[0]}")
 # 4. 檢查數據一致性
 logging.info("\n4. 數據一致性檢查:")
-lengths_match = len(texts) == len(topics) == reduced_embeddings.shape[0]
+lengths_match = len(texts) == len(topics) == embeddings.shape[0]
 logging.info(f"- 所有數據長度是否匹配: {lengths_match}")
 if not lengths_match:
     logging.warning(f"  - 文檔數量: {len(texts)}")
     logging.warning(f"  - 主題數量: {len(topics)}")
-    logging.warning(f"  - 嵌入向量數量: {reduced_embeddings.shape[0]}")
-
+    logging.warning(f"  - 嵌入向量數量: {embeddings.shape[0]}")
+# # 如果檢查通過，繼續執行 visualize_documents
+# if lengths_match and not np.isnan(reduced_embeddings).any() and not np.isinf(reduced_embeddings).any():
+#     logging.info("\n✓ 所有檢查通過，可以進行視覺化")
+# else:
+#     logging.error("\n⚠ 警告：數據可能有問題，請檢查上述信息")
 # 如果檢查通過，繼續執行 visualize_documents
-if lengths_match and not np.isnan(reduced_embeddings).any() and not np.isinf(reduced_embeddings).any():
+if lengths_match and not np.isnan(embeddings).any() and not np.isinf(embeddings).any():
     logging.info("\n✓ 所有檢查通過，可以進行視覺化")
 else:
     logging.error("\n⚠ 警告：數據可能有問題，請檢查上述信息")
+# 全面診斷代碼
+print("\n===== 文檔數量診斷 =====")
+print(f"原始文本數量: {len(texts)}")
+print(f"嵌入向量數量: {embeddings.shape[0]}")
+print(f"主題分配數量: {len(topics)}")
+
+# 檢查主題分布
+topic_distribution = pd.Series(topics).value_counts().sort_index()
+print(f"\n主題分布 (前10個):\n{topic_distribution.head(10)}")
+print(f"噪音文檔數量 (主題 -1): {topic_distribution.get(-1, 0)}")
+print(f"總共有 {len(topic_distribution)} 個不同主題")
+
+# 檢查嵌入向量
+print("\n===== 嵌入向量診斷 =====")
+print(f"嵌入向量形狀: {embeddings.shape}")
+print(f"嵌入向量中的 NaN 值數量: {np.isnan(embeddings).sum()}")
+print(f"嵌入向量中的無限值數量: {np.isinf(embeddings).sum()}")
+
+# 檢查降維結果
+try:
+    reduced_embeddings = topic_model._reduce_dimensionality(embeddings)
+    print(f"\n降維後的嵌入向量形狀: {reduced_embeddings.shape}")
+    print(f"降維後嵌入向量中的 NaN 值數量: {np.isnan(reduced_embeddings).sum()}")
+except Exception as e:
+    print(f"\n降維過程出錯: {str(e)}")
+
+# 檢查視覺化函數參數
+print("\n===== 視覺化函數診斷 =====")
+try:
+    # 獲取視覺化函數的默認參數
+    import inspect
+    vis_params = inspect.signature(topic_model.visualize_documents).parameters
+    print("visualize_documents 函數參數:")
+    for param_name, param in vis_params.items():
+        print(f"  - {param_name}: {param.default}")
+except Exception as e:
+    print(f"獲取視覺化函數參數出錯: {str(e)}")
+
+# 檢查記憶體使用情況
+import psutil
+print("\n===== 系統資源診斷 =====")
+process = psutil.Process()
+memory_info = process.memory_info()
+print(f"當前程序記憶體使用: {memory_info.rss / (1024 * 1024):.2f} MB")
+print(f"系統總記憶體: {psutil.virtual_memory().total / (1024 * 1024 * 1024):.2f} GB")
+print(f"系統可用記憶體: {psutil.virtual_memory().available / (1024 * 1024 * 1024):.2f} GB")
 
 # 2. 文檔視覺化 - 使用降維後的 embeddings
 # 修改視覺化文檔的部分
 try:
     logging.info("嘗試生成視覺化...")
-    
     # 方法1：使用 BERTopic 的 visualize_documents，但增加更多控制參數
     fig_docs_original = topic_model.visualize_documents(
         docs=texts,
-        reduced_embeddings=reduced_embeddings,
-        topics=topics,
+        embeddings=embeddings,
+        topics=topics,  # 明確指定主題
+        hide_document_hover=True,
         width=1200,
         height=800,
-        hide_document_hover=True,
-        hide_annotations=True,
-        # 關鍵參數：確保顯示所有點
-        sample=1.0,  # 顯示100%的數據點
-        title="文檔主題分布圖 (所有文檔)"
+        title="文檔主題分布圖"
     )
     
-    # 更新圖表布局和標記樣式，使點更明顯
-    fig_docs_original.update_layout(
-        showlegend=True,
-        legend=dict(
-            yanchor="top",
-            y=0.99,
-            xanchor="right",
-            x=0.99
-        ),
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
+    # 檢查圖表內容
+    if fig_docs_original.data:  # 檢查是否有數據
+        logging.info(f"圖表數據點數量: {len(fig_docs_original.data[0].x)}")
+        logging.info(f"圖表類型: {fig_docs_original.data[0].type}")
+        logging.info(f"圖表模式: {fig_docs_original.data[0].mode}")
+        
+        # 檢查是否有座標數據
+        if len(fig_docs_original.data[0].x) > 0 and len(fig_docs_original.data[0].y) > 0:
+            logging.info("✓ 視覺化成功生成，包含有效的數據點")
+            fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+        else:
+            logging.error("❌ 視覺化生成失敗：沒有有效的座標數據")
+    else:
+        logging.error("❌ 視覺化生成失敗：圖表沒有數據")
+
+except Exception as e:
+    logging.error(f"視覺化生成過程中發生錯誤: {str(e)}")
+    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
     
-    # 增加點的大小和不透明度
-    fig_docs_original.update_traces(
-        marker=dict(size=7, opacity=0.8),  # 增加大小和不透明度
-        selector=dict(mode='markers')
-    )
-    
-    logging.info("視覺化生成成功！")
-    fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+    # 移除這行錯誤的日誌信息
+    # logging.info("視覺化生成成功！")
+    # 移除這行錯誤的代碼
+    # fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
     
     # 方法2：創建一個備用的簡化版本，確保所有點都顯示
     logging.info("創建備用視覺化...")
@@ -444,13 +504,13 @@ topics_over_time = topic_model.topics_over_time(
     timestamps=timestamps,
     global_tuning=True,
     evolution_tuning=True,
-    nr_bins=20
+    nr_bins=20,
 )
 
 # 創建視覺化
 fig_topics_over_time = topic_model.visualize_topics_over_time(
     topics_over_time,
-    top_n_topics=10,
+    top_n_topics=None,
     width=1200,
     height=600
 )

@@ -31,7 +31,7 @@ with open(stopwords_file_path, encoding='utf-8') as f:
 additional_stopwords = {
     "免责声明","文章描述","免责","删除","网络文章","旨在倡导","不良引导", "文章旨在","倡导社会","低俗","低俗不良","过程图片",
     "图片","不良","来源于","口感","复盆子","阅读原文","阅读","原文","版权","文章旨在","文章","cctv4","上方cctv4","cctv4 关注","点击上方","上方",
-    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧"
+    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧","白酒","原料","一瓶","转发"
     }
 stop_words.update(additional_stopwords)
 
@@ -1056,15 +1056,15 @@ topics_over_time = topic_model.topics_over_time(
     timestamps=timestamps,
     global_tuning=True,
     evolution_tuning=True,
-    nr_bins=20
+    nr_topics=None
 )
 
 # 創建視覺化
 fig_topics_over_time = topic_model.visualize_topics_over_time(
     topics_over_time,
-    top_n_topics=10,
+    top_n_topics=None,
     width=1200,
-    height=600
+    height=800
 )
 
 # 保存視覺化結果
