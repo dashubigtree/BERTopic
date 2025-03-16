@@ -58,15 +58,24 @@ if 'content' not in df.columns:
     raise ValueError("The CSV file does not contain a 'content' column.")
 
 print("清理文本中...")
+# 1. 先清理文本
 df['cleaned_content'] = df['content'].dropna().apply(lambda x: clean_text(x, noise_chars))
 
-empty_rows = df[df["cleaned_content"] == ""]
+# 2. 移除清理後為空的行
+empty_rows = df[df["cleaned_content"].str.strip() == ""]
 df = df.drop(empty_rows.index)
 print(f'清理後資料筆數: {len(df)}')
 
 print("進行分詞和預處理...")
+# 3. 分詞和預處理
 df["tokens"] = df["cleaned_content"].apply(preprocess_text)
 
+# 4. 過濫token數量過少的文本
+min_tokens = 3  # 設定最小token數量
+df = df[df["tokens"].apply(len) >= min_tokens]
+print(f'過濫短文本後資料筆數: {len(df)}')
+
+# 5. 生成最終文本列表
 texts = df["tokens"].apply(lambda x: " ".join(x)).tolist()
 
 print("設置 BERTopic 模型...")
@@ -107,7 +116,7 @@ ctfidf_model = ClassTfidfTransformer(
         "两岸", "事件", "协议", "海域",
         "鱼权", "渔业", "经济", "台湾",
         "中国", "海巡", "大陆", "国民党",
-        "东引岛","武装","乌丘","台海","海警"
+        #"东引岛","乌丘","台海","海警"
     ],
     bm25_weighting=True,
     reduce_frequent_words=True    
@@ -205,14 +214,6 @@ fig_intertopic = topic_model.visualize_topics(custom_labels=False) #True的話�
 fig_intertopic.write_html(f"{visualization_path}/intertopic_distance_map.html")
 
 
-# 先進行降維處理
-# print("進行文檔降維...")
-# reduced_embeddings = UMAP(
-#     n_neighbors=15,
-#     n_components=2,
-#     min_dist=0.1,        
-#     metric='cosine',
-# ).fit_transform(embeddings)
 
 # 在 visualize_documents 之前添加詳細的檢查
 # 在文件開頭添加 logging 相關設置
@@ -268,102 +269,62 @@ logging.info(f"- 標籤數量: {len(topics)}")
 logging.info(f"- 唯一主題數: {len(set(topics))}")
 logging.info(f"- 主題分布: {pd.Series(topics).value_counts().to_string()}")
 
-# # 4. 檢查數據一致性
-# logging.info("\n4. 數據一致性檢查:")
-# lengths_match = len(texts) == len(topics) == reduced_embeddings.shape[0]
-# logging.info(f"- 所有數據長度是否匹配: {lengths_match}")
-# if not lengths_match:
-#     logging.warning(f"  - 文檔數量: {len(texts)}")
-#     logging.warning(f"  - 主題數量: {len(topics)}")
-#     logging.warning(f"  - 嵌入向量數量: {reduced_embeddings.shape[0]}")
-# 4. 檢查數據一致性
-logging.info("\n4. 數據一致性檢查:")
-lengths_match = len(texts) == len(topics) == embeddings.shape[0]
-logging.info(f"- 所有數據長度是否匹配: {lengths_match}")
-if not lengths_match:
-    logging.warning(f"  - 文檔數量: {len(texts)}")
-    logging.warning(f"  - 主題數量: {len(topics)}")
-    logging.warning(f"  - 嵌入向量數量: {embeddings.shape[0]}")
-# # 如果檢查通過，繼續執行 visualize_documents
-# if lengths_match and not np.isnan(reduced_embeddings).any() and not np.isinf(reduced_embeddings).any():
-#     logging.info("\n✓ 所有檢查通過，可以進行視覺化")
-# else:
-#     logging.error("\n⚠ 警告：數據可能有問題，請檢查上述信息")
-# 如果檢查通過，繼續執行 visualize_documents
-if lengths_match and not np.isnan(embeddings).any() and not np.isinf(embeddings).any():
-    logging.info("\n✓ 所有檢查通過，可以進行視覺化")
-else:
-    logging.error("\n⚠ 警告：數據可能有問題，請檢查上述信息")
-# 全面診斷代碼
-print("\n===== 文檔數量診斷 =====")
-print(f"原始文本數量: {len(texts)}")
-print(f"嵌入向量數量: {embeddings.shape[0]}")
-print(f"主題分配數量: {len(topics)}")
-
-# 檢查主題分布
-topic_distribution = pd.Series(topics).value_counts().sort_index()
-print(f"\n主題分布 (前10個):\n{topic_distribution.head(10)}")
-print(f"噪音文檔數量 (主題 -1): {topic_distribution.get(-1, 0)}")
-print(f"總共有 {len(topic_distribution)} 個不同主題")
-
-# 檢查嵌入向量
-print("\n===== 嵌入向量診斷 =====")
-print(f"嵌入向量形狀: {embeddings.shape}")
-print(f"嵌入向量中的 NaN 值數量: {np.isnan(embeddings).sum()}")
-print(f"嵌入向量中的無限值數量: {np.isinf(embeddings).sum()}")
-
-# 檢查降維結果
-try:
-    reduced_embeddings = topic_model._reduce_dimensionality(embeddings)
-    print(f"\n降維後的嵌入向量形狀: {reduced_embeddings.shape}")
-    print(f"降維後嵌入向量中的 NaN 值數量: {np.isnan(reduced_embeddings).sum()}")
-except Exception as e:
-    print(f"\n降維過程出錯: {str(e)}")
-
-# 檢查視覺化函數參數
-print("\n===== 視覺化函數診斷 =====")
-try:
-    # 獲取視覺化函數的默認參數
-    import inspect
-    vis_params = inspect.signature(topic_model.visualize_documents).parameters
-    print("visualize_documents 函數參數:")
-    for param_name, param in vis_params.items():
-        print(f"  - {param_name}: {param.default}")
-except Exception as e:
-    print(f"獲取視覺化函數參數出錯: {str(e)}")
-
-# 檢查記憶體使用情況
-import psutil
-print("\n===== 系統資源診斷 =====")
-process = psutil.Process()
-memory_info = process.memory_info()
-print(f"當前程序記憶體使用: {memory_info.rss / (1024 * 1024):.2f} MB")
-print(f"系統總記憶體: {psutil.virtual_memory().total / (1024 * 1024 * 1024):.2f} GB")
-print(f"系統可用記憶體: {psutil.virtual_memory().available / (1024 * 1024 * 1024):.2f} GB")
-
-# 2. 文檔視覺化
+# 2. start visualize_documents
 print("\n===== 生成文檔視覺化 =====")
+embeddings_cleaned = embedding_model.encode(df['cleaned_content'].tolist(), show_progress_bar=True)
+reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine').fit_transform(embeddings_cleaned)
 
 # 方法1：使用 BERTopic 的 visualize_documents
 try:
     logging.info("生成 BERTopic 原生視覺化...")
+    
+    # 添加更多診斷信息
+    print("檢查視覺化所需數據：")
+    print(f"texts 長度: {len(texts)}")
+    print(f"reduced_embeddings 形狀: {reduced_embeddings.shape}")
+    print(f"topics 長度: {len(topics)}")
+
+    # 確保所有數據維度一致
+    if not (len(texts) == reduced_embeddings.shape[0] == len(topics)):
+        raise ValueError(f"數據維度不匹配: texts={len(texts)}, embeddings={reduced_embeddings.shape[0]}, topics={len(topics)}")
+
+    # 使用降維後的嵌入向量進行視覺化
     fig_docs_original = topic_model.visualize_documents(
         docs=texts,
-        embeddings=embeddings,
-        topics=topics,
-        hide_document_hover=True,
+        reduced_embeddings=reduced_embeddings,
+        topics=topics,  # 明確傳入主題標籤
         width=1200,
         height=800,
         title="文檔主題分布圖 (BERTopic)",
         custom_labels=custom_labels
     )
     
-    # 保存 BERTopic 視覺化結果
-    fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+    # 檢查生成的圖形對象
+    print(f"圖形對象類型: {type(fig_docs_original)}")
+    
+    # 保存前檢查目錄
+    if not os.path.exists(visualization_path):
+        os.makedirs(visualization_path)
+    
+    # 使用絕對路徑保存
+    save_path = os.path.abspath(f"{visualization_path}/documents_visualization_original.html")
+    fig_docs_original.write_html(save_path)
+    print(f"視覺化文件已保存至: {save_path}")
+    
     logging.info("BERTopic 視覺化完成")
+
 except Exception as e:
     logging.error(f"BERTopic 視覺化生成失敗: {str(e)}")
     logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
+    
+    # 如果第一種方法失敗，記錄更多診斷信息
+    print("\n=== 診斷信息 ===")
+    print(f"1. texts 類型: {type(texts)}")
+    print(f"2. embeddings 類型: {type(reduced_embeddings)}")
+    if isinstance(reduced_embeddings, np.ndarray):
+        print(f"   embeddings 數據類型: {reduced_embeddings.dtype}")
+    print(f"3. topics 類型: {type(topics)}")
+    print("=" * 50)
 
 # 方法2：無論上面是否成功，都執行備用方案
 try:
