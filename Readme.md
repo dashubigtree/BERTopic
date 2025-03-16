@@ -277,3 +277,6 @@ conda env create -f environment.yml
 
 # 0313 progress
 看起來散點圖還是會失敗，就算我直接用reduced_embeddings的結果去畫scatter，他顯示的效果也不太好。
+
+# 0316 progress
+four_catrgories_v3 只是嘗試一些不同的畫法。最後visualize documents 就用v2 的就好

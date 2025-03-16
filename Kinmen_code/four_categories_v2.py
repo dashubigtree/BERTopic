@@ -14,7 +14,8 @@ import numpy as np
 import plotly.express as px  # 添加這行
 import plotly.io as pio      # 這行已經存在，不需要重複添加
 import traceback
-
+import random
+import os
 # 定義噪音字元集合
 noise_chars = {'zvx','\U0001F48E', '。', '▲', '△', '\U0001F50D', '？', '—', '<', '∶', '\\r', '；', '✦', '\\u200c', '️', '－', '℃', '‖', '!', '「', '→', '/', '║', '」', '@', '，', '?', "\"", '○', '）', '『', '．', '\U0001F449', '】', '\U0001F31F', '=', '\U0001F447', '‰', '【', ';', '#', ')', '：', '\\u200d','\u200d', '❖', '~', ']', '%', '·', '↑', '（', '〕', '☆', '※', '&', '•', '\U0001F44D', '>', '／', '▌', '–', '↓', '[', ''', ':', '《', '▎', '\U0001F91D', '©', '+', '\U0001F30A', '\\xa0', '\\n', '◇', ',', '◎', '…', '(', '〔', '\\\\', '\"', '■', '｜', '─', '\\u200b', '-', '●', '\"', '▊', '、', '︱', ''', '*', '⭐', '》', '％', '！', '〉', '|', '▼', '\U0001F446', '\U0001F3E1', '°', '\\t', '』', '〈', '～', '◆', '.', '⬆', '\"'}
 
@@ -31,7 +32,7 @@ with open(stopwords_file_path, encoding='utf-8') as f:
 additional_stopwords = {
     "免责声明","文章描述","免责","删除","网络文章","旨在倡导","不良引导", "文章旨在","倡导社会","低俗","低俗不良","过程图片",
     "图片","不良","来源于","口感","复盆子","阅读原文","阅读","原文","版权","文章旨在","文章","CCTV4","cctv4","上方cctv4","cctv4 关注","点击上方","上方",
-    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧","白酒","一瓶","小编","香肠","购买"
+    "朋友圈","一键","一键分享","朋友圈","点击","下图","分享","右侧","下方","左侧","白酒","一瓶","小编","香肠","购买","草莓","央视"
     }
 stop_words.update(additional_stopwords)
 
@@ -88,8 +89,8 @@ hdbscan_model = HDBSCAN(
     metric='euclidean',
     cluster_selection_method='eom',
     prediction_data=True,
-    alpha=0.5               # 增加 alpha 值以產生更明顯的群集
-)
+    alpha=0.5
+    )
 
 vectorizer = CountVectorizer(
     ngram_range=(1, 1),
@@ -102,10 +103,11 @@ vectorizer = CountVectorizer(
 # 修改 ClassTfidfTransformer 的設置
 ctfidf_model = ClassTfidfTransformer(
     seed_words=[
-        "條約", "防禦", "執法", "金門",
-        "兩岸", "事件", "協議", "海域",
-        "漁權", "漁業", "經濟", "台灣",
-        "中國", "海巡", "大陸", "國民黨"
+        "条约", "防御", "执法", "金门",
+        "两岸", "事件", "协议", "海域",
+        "鱼权", "渔业", "经济", "台湾",
+        "中国", "海巡", "大陆", "国民党",
+        "东引岛","武装","乌丘","台海","海警"
     ],
     bm25_weighting=True,
     reduce_frequent_words=True    
@@ -140,6 +142,40 @@ topics, _ = topic_model.fit_transform(texts, embeddings)
 # 儲存模型
 model_save_path = "./model/bertopic_four_categories_v2"
 topic_model.save(model_save_path)
+# 1. 將 topic_info 的 print 資訊儲存到指定路徑
+# 定義主題標籤映射（移到視覺化之前）
+custom_labels = {
+    -1: "topic -1 test",
+    1: "topic 1 test",
+    0: "topic 0 test",
+    2: "topic 2 test",
+    3: "topic 3 test",
+    4: "topic 4 test",
+    5: "topic 5 test",
+    6: "topic 6 test",
+    7: "topic 7 test",
+    8: "topic 8 test",
+    9: "topic 9 test",
+    10: "topic 10 test",
+    11: "topic 11 test",
+    12: "topic 12 test",
+    13: "topic 13 test",
+    14: "topic 14 test",
+    15: "topic 15 test",
+    16: "topic 16 test",
+    17: "topic 17 test",
+    18: "topic 18 test",
+    19: "topic 19 test",
+    20:"topic  20 test",
+    21:"topic  21 test",
+    22:"topic  22 test",
+    23:"topic  23 test",
+    24:"topic  24 test",
+    25:"topic  25 test",
+}
+
+# 設置自定義標籤
+topic_model.set_topic_labels(custom_labels)
 print(f"模型已儲存至: {model_save_path}")
 
 # 在視覺化之前添加以下診斷代碼
@@ -165,7 +201,7 @@ topic_info = topic_model.get_topic_info()
 
 # 使用 BERTopic 原生的視覺化功能
 # 1. Intertopic Distance Map (主題間距離圖) - 這就是您要求的第一項
-fig_intertopic = topic_model.visualize_topics()
+fig_intertopic = topic_model.visualize_topics(custom_labels=False) #True的話那個topic的圓圈就看不出來關鍵字大概有哪些了
 fig_intertopic.write_html(f"{visualization_path}/intertopic_distance_map.html")
 
 
@@ -305,129 +341,101 @@ print(f"當前程序記憶體使用: {memory_info.rss / (1024 * 1024):.2f} MB")
 print(f"系統總記憶體: {psutil.virtual_memory().total / (1024 * 1024 * 1024):.2f} GB")
 print(f"系統可用記憶體: {psutil.virtual_memory().available / (1024 * 1024 * 1024):.2f} GB")
 
-# 2. 文檔視覺化 - 使用降維後的 embeddings
-# 修改視覺化文檔的部分
+# 2. 文檔視覺化
+print("\n===== 生成文檔視覺化 =====")
+
+# 方法1：使用 BERTopic 的 visualize_documents
 try:
-    logging.info("嘗試生成視覺化...")
-    # 方法1：使用 BERTopic 的 visualize_documents，但增加更多控制參數
+    logging.info("生成 BERTopic 原生視覺化...")
     fig_docs_original = topic_model.visualize_documents(
         docs=texts,
         embeddings=embeddings,
-        topics=topics,  # 明確指定主題
+        topics=topics,
         hide_document_hover=True,
         width=1200,
         height=800,
-        title="文檔主題分布圖"
+        title="文檔主題分布圖 (BERTopic)",
+        custom_labels=custom_labels
     )
     
-    # 檢查圖表內容
-    if fig_docs_original.data:  # 檢查是否有數據
-        logging.info(f"圖表數據點數量: {len(fig_docs_original.data[0].x)}")
-        logging.info(f"圖表類型: {fig_docs_original.data[0].type}")
-        logging.info(f"圖表模式: {fig_docs_original.data[0].mode}")
-        
-        # 檢查是否有座標數據
-        if len(fig_docs_original.data[0].x) > 0 and len(fig_docs_original.data[0].y) > 0:
-            logging.info("✓ 視覺化成功生成，包含有效的數據點")
-            fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
-        else:
-            logging.error("❌ 視覺化生成失敗：沒有有效的座標數據")
-    else:
-        logging.error("❌ 視覺化生成失敗：圖表沒有數據")
-
+    # 保存 BERTopic 視覺化結果
+    fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+    logging.info("BERTopic 視覺化完成")
 except Exception as e:
-    logging.error(f"視覺化生成過程中發生錯誤: {str(e)}")
+    logging.error(f"BERTopic 視覺化生成失敗: {str(e)}")
     logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
+
+# 方法2：無論上面是否成功，都執行備用方案
+try:
+    logging.info("生成備用視覺化...")
     
-    # 移除這行錯誤的日誌信息
-    # logging.info("視覺化生成成功！")
-    # 移除這行錯誤的代碼
-    # fig_docs_original.write_html(f"{visualization_path}/documents_visualization_original.html")
+    # 獲取降維後的嵌入向量
+    reduced_embeddings = topic_model._reduce_dimensionality(embeddings)
     
-    # 方法2：創建一個備用的簡化版本，確保所有點都顯示
-    logging.info("創建備用視覺化...")
-    
-    # 創建數據框
+    # 創建數據框，使用 custom_labels 替換原始主題編號
     viz_df = pd.DataFrame({
         'x': reduced_embeddings[:, 0],
         'y': reduced_embeddings[:, 1],
-        'topic': [str(t) for t in topics],  # 將主題轉換為字符串
+        'topic': [custom_labels.get(t, f"Topic {t}") for t in topics],  # 使用自定義標籤
         'text': texts
     })
     
-    # 使用 plotly express 創建散點圖
+    # 創建散點圖
     fig_backup = px.scatter(
         viz_df,
         x='x',
         y='y',
         color='topic',
         hover_data=['text'],
-        title='文檔主題分布圖（備用方案，顯示所有點）',
+        title='文檔主題分布圖（備用方案）',
         opacity=0.8,
-        color_discrete_sequence=px.colors.qualitative.Plotly,  # 使用更鮮明的顏色
+        color_discrete_sequence=px.colors.qualitative.Set3,  # 使用更多顏色
         width=1200,
-        height=800
+        height=800,
+        labels={'topic': '主題'}  # 更新圖例標籤
     )
     
-    # 更新標記大小
-    fig_backup.update_traces(marker=dict(size=7))
+    # 更新標記大小和圖例設置
+    fig_backup.update_traces(
+        marker=dict(size=7),
+        showlegend=True
+    )
     
-    # 保存備用視覺化結果
-    fig_backup.write_html(f"{visualization_path}/documents_visualization_backup.html")
-    logging.info("備用視覺化完成")
-    
-    # 方法3：創建一個非交互式的靜態圖像版本
-    logging.info("創建靜態圖像版本...")
-    
-    # 保存為靜態圖像
-    fig_backup.write_image(f"{visualization_path}/documents_visualization_static.png", 
-                          width=1200, height=800, scale=2)  # scale=2 提高分辨率
-    logging.info("靜態圖像版本完成")
-    
-except Exception as e:
-    logging.error(f"視覺化生成失敗: {e}")
-    logging.error(f"錯誤類型: {type(e)}")
-    import traceback
-    logging.error(f"詳細錯誤信息: {traceback.format_exc()}")
-    
-    # 使用備用視覺化方案
-    logging.info("使用備用視覺化方案...")
-    try:
-        viz_df = pd.DataFrame({
-            'x': reduced_embeddings[:, 0],
-            'y': reduced_embeddings[:, 1],
-            'topic': topics,
-            'text': texts
-        })
-        
-        fig_backup = px.scatter(
-            viz_df,
-            x='x',
-            y='y',
-            color='topic',
-            hover_data=['text'],
-            title='文檔主題分布圖（備用方案）'
+    # 更新布局
+    fig_backup.update_layout(
+        legend_title_text='主題分類',
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=1.02
         )
-        
-        fig_backup.write_html(f"{visualization_path}/documents_visualization_backup.html")
-        logging.info("備用視覺化完成")
-    except Exception as e:
-        logging.error(f"備用視覺化也失敗了: {e}")
+    )
+    
+    # 保存 HTML 版本
+    fig_backup.write_html(f"{visualization_path}/documents_visualization_backup.html")
+    
+    # 保存 PNG 版本
+    fig_backup.write_image(f"{visualization_path}/documents_visualization_backup.png", 
+                          width=1200, height=800, scale=2)
+    
+    logging.info("備用視覺化完成（已生成 HTML 和 PNG 文件）")
+except Exception as e:
+    logging.error(f"備用視覺化生成失敗: {str(e)}")
+    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
-# 3. 視覺化主題層次結構 (Hierarchical clustering) - 這是您要求的第三項
-fig_hierarchy = topic_model.visualize_hierarchy()
-fig_hierarchy.write_html(f"{visualization_path}/hierarchical_clustering.html")
+print(f"所有視覺化結果已保存到: {visualization_path}")
 
 
 # 其他有用的視覺化
 # 5. 視覺化主題相似性熱圖
-fig_heatmap = topic_model.visualize_heatmap()
+fig_heatmap = topic_model.visualize_heatmap(custom_labels=custom_labels)
 fig_heatmap.write_html(f"{visualization_path}/heatmap_visualization.html")
 
 # 6. 為每個主題生成關鍵詞條形圖
 for topic in topic_info['Topic'].tolist():
     if topic != -1:  # 排除雜訊主題
-        fig_barchart = topic_model.visualize_barchart(topics=[topic], n_words=20, title=f"主題 {topic} 關鍵詞")
+        fig_barchart = topic_model.visualize_barchart(topics=[topic], n_words=20, title=f"主題 {topic} 關鍵詞", custom_labels=custom_labels)
         fig_barchart.write_html(f"{visualization_path}/topic_{topic}_keywords.html")
 
 
@@ -439,12 +447,13 @@ print(f"所有視覺化結果已保存到 {visualization_path}")
 print("\n主題分布概況：")
 print(topic_info)
 
+
+
 # 1. 將 topic_info 的 print 資訊儲存到指定路徑
 topic_info_save_path = "./results/four_categories_v2/topic_info.txt"
 with open(topic_info_save_path, "w", encoding="utf-8") as f:
-    f.write("主題分布概況：\n")
+    f.write("主題分布概況（含自定義標籤）：\n")
     f.write(topic_info.to_string())
-print(f"主題資訊已保存至: {topic_info_save_path}")
 
 # 2. 將各主題的代表性文章原始內容列出來
 representative_docs_save_path = "./results/four_categories_v2/representative_docs.txt"
@@ -453,15 +462,15 @@ with open(representative_docs_save_path, "w", encoding="utf-8") as f:
         if topic == -1:  # 跳過雜訊主題
             continue
         
+        topic_label = custom_labels.get(topic, f"主題 {topic}")
         representative_docs = topic_model.get_representative_docs(topic)
-        f.write(f"\n主題 {topic} 的代表性文章：\n")
+        f.write(f"\n{topic_label}的代表性文章：\n")
         
-        for i, doc in enumerate(representative_docs[:]):  
-            # 找到原始文章
-            original_index = texts.index(doc)  # 獲取文檔在texts中的索引
-            original_row = df.iloc[original_index]  # 獲取對應的原始數據行
-            original_content = original_row['content']  # 獲取原始文檔內容
-            article_id = original_row.name  # 獲取文章在原始 CSV 中的行號（ID）
+        for i, doc in enumerate(representative_docs[:]):
+            original_index = texts.index(doc)
+            original_row = df.iloc[original_index]
+            original_content = original_row['content']
+            article_id = original_row.name
             
             f.write(f"文檔 {i+1} (行號: {article_id}):\n")
             f.write(original_content + "\n")
@@ -583,4 +592,58 @@ for _, row in plot_df.iterrows():
     print(f"關鍵字: {row['Keywords']}")
     print("-" * 100)
 
+# 生成主題比例圖
+try:
+    # 獲取主題比例
+    topic_proportions = topic_model.get_topic_info().sort_values("Count", ascending=True)
+    
+    # 過濾掉噪音主題（-1）
+    topic_proportions = topic_proportions[topic_proportions['Topic'] != -1]
+    
+    # 計算主題比例
+    total_docs = topic_proportions['Count'].sum()
+    topic_proportions['Proportion'] = topic_proportions['Count'] / total_docs
+    
+    # 為每個主題獲取關鍵詞
+    topic_labels = []
+    for topic in topic_proportions['Topic']:
+        # 獲取前10個關鍵詞
+        words = [word for word, _ in topic_model.get_topic(topic)[:10]]
+        label = ', '.join(words)
+        topic_labels.append(f"Topic {topic}: {label}")
+    
+    # 創建比例圖
+    fig = px.bar(
+        topic_proportions,
+        x="Proportion",  # 改用比例作為 X 軸
+        y="Topic",
+        orientation='h',
+        title="主題分布比例",
+        labels={"Proportion": "主題比例", "Topic": "主題"},  # 更新標籤
+        text="Proportion"  # 顯示比例值
+    )
+    
+    # 更新圖表樣式
+    fig.update_traces(
+        textposition='outside',
+        texttemplate='%{text:.1%}',  # 將比例格式化為百分比
+        marker_color='lightblue'
+    )
+    
+    fig.update_layout(
+        height=800,  # 增加高度以容納所有主題
+        yaxis={'ticktext': topic_labels, 'tickvals': topic_proportions['Topic']},
+        showlegend=False,
+        margin=dict(l=400),  # 增加左邊距以顯示完整的主題標籤
+        xaxis_tickformat=',.0%'  # X 軸刻度以百分比格式顯示
+    )
+    
+    # 保存圖表
+    fig.write_html(f"{visualization_path}/topic_proportions.html")
+    print(f"主題比例圖已保存至: {visualization_path}/topic_proportions.html")
+    
+except Exception as e:
+    print(f"生成主題比例圖時出錯: {str(e)}")
+    logging.error(f"主題比例圖生成失敗: {str(e)}")
+    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
