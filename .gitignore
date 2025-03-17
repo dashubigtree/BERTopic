@@ -1,12 +1,21 @@
 # 忽略 model 文件夾
 /Kinmen_code/model/
 /Kinmen_code/visualization/
+
 # 忽略 data 文件夾中大小大於 50MB 的文件
 /Kinmen_code/data/kinmen_output_split_by_period.csv
 /Kinmen_code/data/Kinmen_splitData_20250223_paragraph_new.csv
 /Kinmen_code/data/Kinmen_splitData_20250223_paragraph.csv
 /Kinmen_code/data/Kinmen_splitData_20250223_sentence.csv
-/Kinmen_code/results/four_categories_v1/Kinmen_splitData_with_topics.csv
-/Kinmen_code/results/four_categories_v2/Kinmen_splitData_with_topics.csv
-/Kinmen_code/results/*/Kinmen_splitData_with_topics.csv  # 添加通配符規則，匹配所有版本的結果
-/Kinmen_code/results/*/*/Kinmen_splitData_with_topics.csv  # 添加通配符規則，匹配所有版本的結果
+
+# 忽略所有結果目錄中的 CSV 文件
+/Kinmen_code/results/**/*.csv
+
+# 忽略特定結果目錄
+/Kinmen_code/results/four_categories_v1/
+/Kinmen_code/results/four_categories_v2/
+/Kinmen_code/results/BERTopic_KeyBERTopic/
+
+# 忽略 macOS 系統文件
+.DS_Store
+**/.DS_Store
