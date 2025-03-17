@@ -282,3 +282,6 @@ conda env create -f environment.yml
 four_catrgories_v3 只是嘗試一些不同的畫法。最後visualize documents 就用v2 的就好
 今天發現在8789篇文章當中，還有幾篇文章出現空字串的問題。所以修改一下之後，最終有效文本只會有8776篇
 這樣處理之後還是畫不出來。
+
+# 0317 record
+four_categories_v4 是和four_categories_v2一模壹樣，只是為了不要讓老師那邊搞混
