@@ -209,11 +209,43 @@ os.makedirs(visualization_path, exist_ok=True)
 topic_info = topic_model.get_topic_info()
 
 # 使用 BERTopic 原生的視覺化功能
-# 1. Intertopic Distance Map (主題間距離圖) - 這就是您要求的第一項
-fig_intertopic = topic_model.visualize_topics(custom_labels=False) #True的話那個topic的圓圈就看不出來關鍵字大概有哪些了
+# 1. Intertopic Distance Map (主題間距離圖)
+fig_intertopic = topic_model.visualize_topics(custom_labels=False)
 fig_intertopic.write_html(f"{visualization_path}/intertopic_distance_map.html")
 
-
+# 2. 生成所有主題的詞語排名圖和關鍵詞條形圖
+try:
+    # 獲取非雜訊主題列表
+    valid_topics = [topic for topic in topic_info['Topic'].tolist() if topic != -1]
+    
+    # 生成所有主題的詞語排名圖 (Term Rank)
+    print("生成所有主題的詞語排名圖...")
+    fig_term_rank_all = topic_model.visualize_term_rank(
+        log_scale=True,
+        custom_labels=custom_labels,
+        title="所有主題詞語排名分布",
+        width=1500,
+        height=800
+    )
+    fig_term_rank_all.write_html(f"{visualization_path}/all_topics_term_rank.html")
+    
+    # 生成所有主題的關鍵詞條形圖 (Keyword Barchart)
+    print("生成所有主題的關鍵詞條形圖...")
+    print(f"length of valid_topics: {len(valid_topics)}")
+    print(f"valid_topics: {valid_topics}")
+    fig_barchart_all = topic_model.visualize_barchart(
+        topics=valid_topics,  # 顯示所有非雜訊主題
+        title="所有主題關鍵詞分布",
+        custom_labels=custom_labels,
+        n_words=20,          # 每個主題顯示的關鍵詞數量
+        autoscale=True,
+        )
+    fig_barchart_all.write_html(f"{visualization_path}/all_topics_keywords.html")
+    
+    print("整合主題視覺化完成")
+except Exception as e:
+    print(f"生成整合主題視覺化時出錯: {str(e)}")
+    print(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
 # 在 visualize_documents 之前添加詳細的檢查
 # 在文件開頭添加 logging 相關設置

@@ -260,8 +260,8 @@ try:
     # 生成所有主題的詞語排名圖 (Term Rank)
     print("生成所有主題的詞語排名圖...")
     fig_term_rank_all = topic_model.visualize_term_rank(
-        topics=valid_topics,
         log_scale=True,
+        custom_labels=custom_labels,
         title="所有主題詞語排名分布",
         width=1500,
         height=800
@@ -271,12 +271,10 @@ try:
     # 生成所有主題的關鍵詞條形圖 (Keyword Barchart)
     print("生成所有主題的關鍵詞條形圖...")
     fig_barchart_all = topic_model.visualize_barchart(
-        topics=valid_topics,
-        n_words=20,
+        top_n_topics = len(topics),
         title="所有主題關鍵詞分布",
-        width=1500,
-        height=800,
-        custom_labels=custom_labels
+        custom_labels=custom_labels,
+        autoscale = True,
     )
     fig_barchart_all.write_html(f"{visualization_path}/all_topics_keywords.html")
     
