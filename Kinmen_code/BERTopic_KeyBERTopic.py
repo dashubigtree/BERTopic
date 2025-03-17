@@ -1,15 +1,11 @@
 from keybert import KeyBERT
+from umap import UMAP
+from hdbscan import HDBSCAN
+from sklearn.feature_extraction.text import CountVectorizer
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 from umap import UMAP
 from hdbscan import HDBSCAN
-from sklearn.feature_extraction.text import CountVectorizer
-from bertopic.vectorizers import ClassTfidfTransformer
-from bertopic import BERTopic
-from sentence_transformers import SentenceTransformer
-from umap import UMAP
-from hdbscan import HDBSCAN
-from sklearn.feature_extraction.text import CountVectorizer
 import pandas as pd
 import re
 from gensim.models.phrases import Phrases, Phraser
@@ -186,6 +182,8 @@ kw_model = KeyBERT(model=embedding_model)
 # 為每個主題提取關鍵詞
 print("使用 KeyBERT 提取主題關鍵詞...")
 topic_keywords = {}
+keybert_labels = {}  # 新增：用於存儲基於KeyBERT的主題標籤
+
 for topic in set(topics):
     if topic != -1:  # 排除噪音主題
         # 獲取該主題的所有文檔
@@ -203,9 +201,21 @@ for topic in set(topics):
                 top_n=10
             )
             topic_keywords[topic] = keywords
+            
+            # 新增：使用KeyBERT關鍵詞創建更有意義的主題標籤
+            top_keywords = [kw for kw, _ in keywords[:3]]  # 取前3個關鍵詞
+            keybert_labels[topic] = f"Topic {topic}: {', '.join(top_keywords)}"
+            
             print(f"\n主題 {topic} 的 KeyBERT 關鍵詞:")
             for keyword, score in keywords:
                 print(f"- {keyword}: {score:.4f}")
+
+# 使用KeyBERT生成的標籤替換或補充自定義標籤
+for topic, label in keybert_labels.items():
+    custom_labels[topic] = label
+
+# 設置自定義標籤
+topic_model.set_topic_labels(custom_labels)
 
 # 保存模型和結果
 print("\n保存模型和結果...")
@@ -231,6 +241,10 @@ pio.templates.default = "plotly"   #默認模板
 visualization_path = "./visualization/BERTopic_KeyBERTopic_visualization"
 os.makedirs(visualization_path, exist_ok=True)
 
+# 確保結果目錄存在
+results_path = "./results/BERTopic_KeyBERTopic"
+os.makedirs(results_path, exist_ok=True)
+
 # 獲取主題資訊
 topic_info = topic_model.get_topic_info()
 
@@ -238,6 +252,38 @@ topic_info = topic_model.get_topic_info()
 # 1. Intertopic Distance Map (主題間距離圖) - 這就是您要求的第一項
 fig_intertopic = topic_model.visualize_topics(custom_labels=False) #True的話那個topic的圓圈就看不出來關鍵字大概有哪些了
 fig_intertopic.write_html(f"{visualization_path}/intertopic_distance_map.html")
+
+try:
+    # 獲取非雜訊主題列表
+    valid_topics = [topic for topic in topic_info['Topic'].tolist() if topic != -1]
+    
+    # 生成所有主題的詞語排名圖 (Term Rank)
+    print("生成所有主題的詞語排名圖...")
+    fig_term_rank_all = topic_model.visualize_term_rank(
+        topics=valid_topics,
+        log_scale=True,
+        title="所有主題詞語排名分布",
+        width=1500,
+        height=800
+    )
+    fig_term_rank_all.write_html(f"{visualization_path}/all_topics_term_rank.html")
+    
+    # 生成所有主題的關鍵詞條形圖 (Keyword Barchart)
+    print("生成所有主題的關鍵詞條形圖...")
+    fig_barchart_all = topic_model.visualize_barchart(
+        topics=valid_topics,
+        n_words=20,
+        title="所有主題關鍵詞分布",
+        width=1500,
+        height=800,
+        custom_labels=custom_labels
+    )
+    fig_barchart_all.write_html(f"{visualization_path}/all_topics_keywords.html")
+    
+    print("整合主題視覺化完成")
+except Exception as e:
+    print(f"生成整合主題視覺化時出錯: {str(e)}")
+    print(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
 
 
@@ -247,7 +293,7 @@ import logging
 import os
 
 # 設置日誌目錄
-log_dir = "./visualization/four_categories_v2/log"
+log_dir = "./visualization/BERTopic_KeyBERTopic/log"
 os.makedirs(log_dir, exist_ok=True)
 
 # 在配置日誌之前，先清空日誌文件
@@ -437,13 +483,13 @@ print(topic_info)
 
 
 # 1. 將 topic_info 的 print 資訊儲存到指定路徑
-topic_info_save_path = "./results/four_categories_v2/topic_info.txt"
+topic_info_save_path = f"{results_path}/topic_info.txt"
 with open(topic_info_save_path, "w", encoding="utf-8") as f:
     f.write("主題分布概況（含自定義標籤）：\n")
     f.write(topic_info.to_string())
 
 # 2. 將各主題的代表性文章原始內容列出來
-representative_docs_save_path = "./results/four_categories_v2/representative_docs.txt"
+representative_docs_save_path = f"{results_path}/representative_docs.txt"
 with open(representative_docs_save_path, "w", encoding="utf-8") as f:
     for topic in topic_info['Topic'].tolist():
         if topic == -1:  # 跳過雜訊主題
@@ -470,7 +516,7 @@ df_with_topics = df.copy()
 df_with_topics['topic'] = topics  # 添加主題標籤
 
 # 保存到新的 CSV 文件
-csv_with_topics_path = "./results/four_categories_v2/Kinmen_splitData_with_topics.csv"
+csv_with_topics_path = f"{results_path}/Kinmen_splitData_with_topics.csv"
 df_with_topics.to_csv(csv_with_topics_path, index=False, encoding="utf-8-sig")
 print(f"已將分類結果標示在原始 CSV 文件中，保存至: {csv_with_topics_path}")
 
