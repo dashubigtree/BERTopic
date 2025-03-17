@@ -1,4 +1,10 @@
-# 在文件開頭的導入部分添加以下內容
+from keybert import KeyBERT
+from bertopic import BERTopic
+from sentence_transformers import SentenceTransformer
+from umap import UMAP
+from hdbscan import HDBSCAN
+from sklearn.feature_extraction.text import CountVectorizer
+from bertopic.vectorizers import ClassTfidfTransformer
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 from umap import UMAP
@@ -77,29 +83,26 @@ print(f'過濫短文本後資料筆數: {len(df)}')
 
 # 5. 生成最終文本列表
 texts = df["tokens"].apply(lambda x: " ".join(x)).tolist()
-
-print("設置 BERTopic 模型...")
-# 優化後的模型參數
+print("設置並訓練 BERTopic 模型...")
+# BERTopic 模型參數設置
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# 調整 UMAP 參數
 umap_model = UMAP(
-    n_neighbors=15,      # 增加鄰居數量以捕獲更多局部結構
-    n_components=2,      # 降為2維以便更好地可視化
+    n_neighbors=15,
+    n_components=2,
     metric='cosine',
-    min_dist=0.05,       # 適中的最小距離
-    random_state=42      # 固定隨機種子以獲得可重複的結果
+    min_dist=0.05,
+    random_state=42
 )
 
-# 調整 HDBSCAN 參數以產生約20多個主題
 hdbscan_model = HDBSCAN(
-    min_cluster_size=35,    # 調整以獲得約20多個主題
-    min_samples=5,          # 增加樣本數以獲得更穩定的群集
+    min_cluster_size=35,
+    min_samples=5,
     metric='euclidean',
     cluster_selection_method='eom',
     prediction_data=True,
     alpha=0.5
-    )
+)
 
 vectorizer = CountVectorizer(
     ngram_range=(1, 1),
@@ -107,50 +110,41 @@ vectorizer = CountVectorizer(
     max_features=15000,
     max_df=0.9,
     min_df=3
-    )
+)
 
-# 修改 ClassTfidfTransformer 的設置
 ctfidf_model = ClassTfidfTransformer(
     seed_words=[
         "条约", "防御", "执法", "金门",
         "两岸", "事件", "协议", "海域",
         "鱼权", "渔业", "经济", "台湾",
-        "中国", "海巡", "大陆", "国民党",
-        #"东引岛","乌丘","台海","海警"
+        "中国", "海巡", "大陆", "国民党"
     ],
     bm25_weighting=True,
     reduce_frequent_words=True    
 )
 
-# 建立優化後的模型
+# 建立並訓練 BERTopic 模型
 topic_model = BERTopic(
-    embedding_model=embedding_model,  # embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    embedding_model=embedding_model,
     verbose=True,
     calculate_probabilities=True,
-    nr_topics=25,          # 明確指定約25個主題
+    nr_topics=25,
     umap_model=umap_model,
     hdbscan_model=hdbscan_model,
     vectorizer_model=vectorizer,
     top_n_words=20,
-    min_topic_size=20,     # 與 HDBSCAN 的 min_cluster_size 保持一致
+    min_topic_size=20,
     ctfidf_model=ctfidf_model,
 )
 
-
-# 先生成嵌入向量
-# 在生成嵌入向量後添加以下診斷代碼
+# 生成嵌入向量
 print("生成文檔嵌入向量...")
 embeddings = embedding_model.encode(texts, show_progress_bar=True)
 print(f"嵌入向量形狀: {embeddings.shape}")
 
-
-# 訓練模型時傳入嵌入向量
-print("開始訓練模型...")
-topics, _ = topic_model.fit_transform(texts, embeddings)
-
-# 儲存模型
-model_save_path = "./model/bertopic_four_categories_v4"
-topic_model.save(model_save_path)
+# 訓練 BERTopic 模型
+print("開始訓練 BERTopic 模型...")
+topics, probs = topic_model.fit_transform(texts, embeddings)
 # 1. 將 topic_info 的 print 資訊儲存到指定路徑
 # 定義主題標籤映射（移到視覺化之前）
 custom_labels = {
@@ -185,14 +179,46 @@ custom_labels = {
 
 # 設置自定義標籤
 topic_model.set_topic_labels(custom_labels)
-print(f"模型已儲存至: {model_save_path}")
+# 設置並訓練 KeyBERT 模型
+print("\n設置並訓練 KeyBERT 模型...")
+kw_model = KeyBERT(model=embedding_model)
 
-# 在視覺化之前添加以下診斷代碼
-print(f"主題數量: {len(topics)}")
-print(f"嵌入向量數量: {len(embeddings)}")
-print(f"文本數量: {len(texts)}")
-print(f"唯一主題: {set(topics)}")
-print(f"文本數量: {len(texts)}")
+# 為每個主題提取關鍵詞
+print("使用 KeyBERT 提取主題關鍵詞...")
+topic_keywords = {}
+for topic in set(topics):
+    if topic != -1:  # 排除噪音主題
+        # 獲取該主題的所有文檔
+        topic_docs = [doc for doc, t in zip(df['cleaned_content'], topics) if t == topic]
+        if topic_docs:
+            # 將文檔合併成一個字符串
+            topic_text = ' '.join(topic_docs)
+            # 使用 KeyBERT 提取關鍵詞
+            keywords = kw_model.extract_keywords(
+                topic_text,
+                keyphrase_ngram_range=(1, 2),
+                stop_words=list(stop_words),
+                use_maxsum=True,
+                nr_candidates=20,
+                top_n=10
+            )
+            topic_keywords[topic] = keywords
+            print(f"\n主題 {topic} 的 KeyBERT 關鍵詞:")
+            for keyword, score in keywords:
+                print(f"- {keyword}: {score:.4f}")
+
+# 保存模型和結果
+print("\n保存模型和結果...")
+model_save_path = "./model/BERTopic_KeyBERTopic_model"
+topic_model.save(model_save_path)
+
+# 保存 KeyBERT 結果
+import json
+keywords_save_path = f"{model_save_path}_keybert_keywords.json"
+with open(keywords_save_path, 'w', encoding='utf-8') as f:
+    json.dump(topic_keywords, f, ensure_ascii=False, indent=2)
+
+print(f"模型和關鍵詞已保存至: {model_save_path}")
 
 # 視覺化分析
 print("生成視覺化結果...")
@@ -202,7 +228,7 @@ pio.renderers.default = "browser"  # 尝试使用浏览器渲染器
 pio.templates.default = "plotly"   #默認模板
 
 # 確保視覺化目錄存在
-visualization_path = "./visualization/four_categories_v4"
+visualization_path = "./visualization/BERTopic_KeyBERTopic_visualization"
 os.makedirs(visualization_path, exist_ok=True)
 
 # 獲取主題資訊
@@ -385,60 +411,75 @@ except Exception as e:
     logging.error(f"備用視覺化生成失敗: {str(e)}")
     logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
+print(f"所有視覺化結果已保存到: {visualization_path}")
+
+
+# 其他有用的視覺化
+# 5. 視覺化主題相似性熱圖
+fig_heatmap = topic_model.visualize_heatmap(custom_labels=custom_labels)
+fig_heatmap.write_html(f"{visualization_path}/heatmap_visualization.html")
+
+# 6. 為每個主題生成關鍵詞條形圖
+for topic in topic_info['Topic'].tolist():
+    if topic != -1:  # 排除雜訊主題
+        fig_barchart = topic_model.visualize_barchart(topics=[topic], n_words=20, title=f"主題 {topic} 關鍵詞", custom_labels=custom_labels)
+        fig_barchart.write_html(f"{visualization_path}/topic_{topic}_keywords.html")
+
+
+
 print(f"所有視覺化結果已保存到 {visualization_path}")
 
-# 建立包含主題的數據框
+
+# 輸出主題資訊
+print("\n主題分布概況：")
+print(topic_info)
+
+
+
+# 1. 將 topic_info 的 print 資訊儲存到指定路徑
+topic_info_save_path = "./results/four_categories_v2/topic_info.txt"
+with open(topic_info_save_path, "w", encoding="utf-8") as f:
+    f.write("主題分布概況（含自定義標籤）：\n")
+    f.write(topic_info.to_string())
+
+# 2. 將各主題的代表性文章原始內容列出來
+representative_docs_save_path = "./results/four_categories_v2/representative_docs.txt"
+with open(representative_docs_save_path, "w", encoding="utf-8") as f:
+    for topic in topic_info['Topic'].tolist():
+        if topic == -1:  # 跳過雜訊主題
+            continue
+        
+        topic_label = custom_labels.get(topic, f"主題 {topic}")
+        representative_docs = topic_model.get_representative_docs(topic)
+        f.write(f"\n{topic_label}的代表性文章：\n")
+        
+        for i, doc in enumerate(representative_docs[:]):
+            original_index = texts.index(doc)
+            original_row = df.iloc[original_index]
+            original_content = original_row['content']
+            article_id = original_row.name
+            
+            f.write(f"文檔 {i+1} (行號: {article_id}):\n")
+            f.write(original_content + "\n")
+            f.write("-" * 50 + "\n")
+print(f"代表性文章原始內容已保存至: {representative_docs_save_path}")
+
+# 3. 將分類結果標示在原始的 CSV 文章列表中
+# 先建立一個副本
 df_with_topics = df.copy()
 df_with_topics['topic'] = topics  # 添加主題標籤
 
-# 其他有用的視覺化
-print("\n生成視覺化圖表...")
+# 保存到新的 CSV 文件
+csv_with_topics_path = "./results/four_categories_v2/Kinmen_splitData_with_topics.csv"
+df_with_topics.to_csv(csv_with_topics_path, index=False, encoding="utf-8-sig")
+print(f"已將分類結果標示在原始 CSV 文件中，保存至: {csv_with_topics_path}")
 
-# 1. 視覺化主題相似性熱圖
-try:
-    fig_heatmap = topic_model.visualize_heatmap(
-        custom_labels=custom_labels,
-        width=1200,
-        height=800
-    )
-    fig_heatmap.write_html(f"{visualization_path}/heatmap_visualization.html")
-    print("熱圖生成成功")
-except Exception as e:
-    print(f"生成熱圖時出錯: {str(e)}")
-    logging.error(f"熱圖生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
-
-# 2. 生成所有主題的整合視覺化
-try:
-    # 獲取非雜訊主題列表
-    valid_topics = [topic for topic in topic_info['Topic'].tolist() if topic != -1]
-    
-    # 生成所有主題的詞語排名圖
-    fig_term_rank_all = topic_model.visualize_term_rank(
-        topics=valid_topics,
-        log_scale=True,
-        title="所有主題詞語排名分布",
-        width=1500,
-        height=800
-    )
-    fig_term_rank_all.write_html(f"{visualization_path}/all_topics_term_rank.html")
-    
-    # 生成所有主題的關鍵詞條形圖
-    fig_barchart_all = topic_model.visualize_barchart(
-        topics=valid_topics,
-        n_words=20,
-        title="所有主題關鍵詞分布",
-        width=1500,
-        height=800,
-        custom_labels=custom_labels
-    )
-    fig_barchart_all.write_html(f"{visualization_path}/all_topics_keywords.html")
-    
-    print("整合主題視覺化完成")
-except Exception as e:
-    print(f"生成整合主題視覺化時出錯: {str(e)}")
-    logging.error(f"整合主題視覺化生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
+# 輸出主要主題的關鍵詞
+print("\n主要主題的關鍵詞：")
+for topic in topic_info.head()['Topic'].tolist():
+    if topic != -1:  # 排除雜訊主題
+        print(f"\n主題 {topic}:")
+        print(topic_model.get_topic(topic))
 
 # 在其他視覺化之後，添加 topics over time 的視覺化
 print("生成主題隨時間變化圖...")

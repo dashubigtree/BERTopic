@@ -285,3 +285,5 @@ four_catrgories_v3 只是嘗試一些不同的畫法。最後visualize documents
 
 # 0317 record
 four_categories_v4 是和four_categories_v2一模壹樣，只是為了不要讓老師那邊搞混
+
+新增一個BERTopic_KeyBertopic.py檔案，用來測試KeyBert的效果。   
