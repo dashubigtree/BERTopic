@@ -287,3 +287,95 @@ four_catrgories_v3 只是嘗試一些不同的畫法。最後visualize documents
 four_categories_v4 是和four_categories_v2一模壹樣，只是為了不要讓老師那邊搞混
 
 新增一個BERTopic_KeyBertopic.py檔案，用來測試KeyBert的效果。   
+
+# 0318 record
+four_categories_v5 是以v4為基礎再加上相異程度小於0.5的topic進行merge
+現在v5還沒法成功合併主題
+
+# 0322 recording
+four_categories_v6 是用和v4一模壹樣，但主要更換了SentenceTransformer模型： paraphrase-multilingual-MiniLM-L12-v2
+v7 主要嘗試使用sentence切割的資料進行訓練
+
+記錄一下CountVectorizer和ClassTfidfTransformer的差異：
+CountVectorizer 和 ClassTfidfTransformer 在 BERTopic 模型中扮演著前後相連的角色，它們之間的關聯如下：
+
+1. 處理流程的順序 ：
+   
+   - CountVectorizer 先將文本轉換為詞頻矩陣
+   - ClassTfidfTransformer 再對這個詞頻矩陣進行加權處理
+2. 數據傳遞 ：
+   
+   - CountVectorizer 的輸出（詞頻矩陣）是 ClassTfidfTransformer 的輸入
+   - ClassTfidfTransformer 基於類別信息對詞頻進行加權
+3. 功能互補 ：
+   
+   - CountVectorizer 負責特徵提取
+   - ClassTfidfTransformer 負責特徵加權
+4. 在 BERTopic 中的應用 ：
+   
+   - CountVectorizer 用於生成初始的文檔-詞語矩陣
+   - ClassTfidfTransformer 用於計算 c-TF-IDF 值，確定主題關鍵詞的重要性
+5. 參數設置的影響 ：
+   
+   - CountVectorizer 的參數（如 max_features, ngram_range）會影響 ClassTfidfTransformer 的輸入質量
+   - ClassTfidfTransformer 的參數（如 bm25_weighting）會影響最終的主題表示
+
+#### 紀錄UMAP and HDBSCAN的參數介紹
+UMAP 參數
+
+1. n_neighbors=15
+   
+   - 想像你在畫地圖，這個參數決定「每個地點要看多遠的範圍」
+   - 調高：會看到更大範圍的整體分布，但可能忽略局部細節
+   - 調低：會更關注局部細節，但可能看不清整體格局
+2. n_components=2
+   
+   - 這就像你決定「地圖要畫成幾維」
+   - 2維：最適合視覺化，可以畫在平面圖上
+   - 3維：可以畫成立體圖，但比較難展示
+3. metric='cosine'
+   
+   - 這就像你決定「怎麼測量兩個地點之間的距離」
+   - cosine：用角度來測量，適合文本數據
+   - euclidean：用直線距離來測量，適合空間數據
+4. min_dist=0.075
+   
+   - 這就像你決定「地圖上每個點之間要留多少空白」
+   - 調高：點與點之間會拉開距離，看起來更分散
+   - 調低：點會擠在一起，看起來更密集
+5. random_state=42
+   
+   - 這就像你決定「用哪種方式來畫地圖」
+   - 固定這個值可以確保每次畫出來的地圖都一樣
+HDBSCAN 參數
+
+1. min_cluster_size=25
+   
+   - 想像你在公園裡觀察人群，這個參數就像你決定「至少要有多少人聚在一起才算一個群體」
+   - 調低：你會發現更多小群體，比如三五成群的聊天小組
+   - 調高：只會注意到大規模聚集，比如廣場舞群體
+2. min_samples=5
+   
+   - 這就像你判斷「一個群體要有多緊密才算真的在互動」
+   - 調低：會把稍微靠近的人都算成一個群體
+   - 調高：只有真正緊密互動的人才會被歸為一群
+3. metric='euclidean'
+   
+   - 這就像你決定「怎麼測量兩個人之間的距離」
+   - euclidean：用直線距離來測量，適合空間數據
+   - cosine：用角度來測量，適合文本數據
+4. cluster_selection_method='eom'
+   
+   - 這就像你決定「怎麼選擇要展示的群體」
+   - eom：會選擇最穩定的群體
+   - leaf：會選擇所有可能的群體
+5. prediction_data=True
+   
+   - 這就像你決定「要不要記錄每個人的群體信息」
+   - True：會記錄，方便後續分析
+   - False：不會記錄，節省空間
+6. alpha=0.5
+   
+   - 這就像你決定「群體的邊界要有多嚴格」
+   - 調高：群體邊界更嚴格，減少模糊地帶
+   - 調低：群體邊界更寬鬆，增加模糊地帶
