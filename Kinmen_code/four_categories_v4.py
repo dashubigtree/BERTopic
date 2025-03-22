@@ -132,7 +132,7 @@ topic_model = BERTopic(
     hdbscan_model=hdbscan_model,
     vectorizer_model=vectorizer,
     top_n_words=20,
-    min_topic_size=20,     # 與 HDBSCAN 的 min_cluster_size 保持一致
+    min_topic_size=20,     
     ctfidf_model=ctfidf_model,
 )
 
@@ -149,7 +149,7 @@ print("開始訓練模型...")
 topics, _ = topic_model.fit_transform(texts, embeddings)
 
 # 儲存模型
-model_save_path = "./model/bertopic_four_categories_v4"
+model_save_path = "./model/bertopic_four_categories_v4"  # 更新路徑
 topic_model.save(model_save_path)
 # 1. 將 topic_info 的 print 資訊儲存到指定路徑
 # 定義主題標籤映射（移到視覺化之前）
@@ -194,6 +194,9 @@ print(f"文本數量: {len(texts)}")
 print(f"唯一主題: {set(topics)}")
 print(f"文本數量: {len(texts)}")
 
+
+
+
 # 視覺化分析
 print("生成視覺化結果...")
 import plotly.io as pio
@@ -202,7 +205,7 @@ pio.renderers.default = "browser"  # 尝试使用浏览器渲染器
 pio.templates.default = "plotly"   #默認模板
 
 # 確保視覺化目錄存在
-visualization_path = "./visualization/four_categories_v4"
+visualization_path = "./visualization/four_categories_v4"  # 更新路徑
 os.makedirs(visualization_path, exist_ok=True)
 
 # 獲取主題資訊
@@ -247,69 +250,14 @@ except Exception as e:
     print(f"生成整合主題視覺化時出錯: {str(e)}")
     print(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
-# 在 visualize_documents 之前添加詳細的檢查
-# 在文件開頭添加 logging 相關設置
-import logging
-import os
 
-# 設置日誌目錄
-log_dir = "./visualization/four_categories_v2/log"
-os.makedirs(log_dir, exist_ok=True)
 
-# 在配置日誌之前，先清空日誌文件
-with open(f"{log_dir}/data_check.log", 'w', encoding='utf-8') as f:
-    f.write('')  # 清空文件
-
-# 然後再配置日誌
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f"{log_dir}/data_check.log", encoding='utf-8'),
-        logging.StreamHandler()  # 同時輸出到控制台
-    ]
-)
-
-# 修改檢查部分的代碼
-print("\n=== 資料準備檢查 ===")
-logging.info("=== 開始資料準備檢查 ===")
-
-# 1. 檢查文檔數據
-logging.info("1. 文檔檢查:")
-logging.info(f"- 文檔數量: {len(texts)}")
-logging.info(f"- 文檔類型: {type(texts)}")
-logging.info(f"- 文檔樣本: {texts[0][:100]}...")
-
-# 2. 檢查降維後的嵌入向量
-# logging.info("\n2. 降維嵌入向量檢查:")
-# logging.info(f"- 向量形狀: {reduced_embeddings.shape}")
-# logging.info(f"- 向量類型: {type(reduced_embeddings)}")
-# logging.info(f"- 是否包含 NaN: {np.isnan(reduced_embeddings).any()}")
-# logging.info(f"- 是否包含 Inf: {np.isinf(reduced_embeddings).any()}")
-# logging.info(f"- 數值範圍: [{reduced_embeddings.min():.2f}, {reduced_embeddings.max():.2f}]")
-
-logging.info("\n2. 降維嵌入向量檢查:")
-logging.info(f"- 向量形狀: {embeddings.shape}")
-logging.info(f"- 向量類型: {type(embeddings)}")
-logging.info(f"- 是否包含 NaN: {np.isnan(embeddings).any()}")
-logging.info(f"- 是否包含 Inf: {np.isinf(embeddings).any()}")
-logging.info(f"- 數值範圍: [{embeddings.min():.2f}, {embeddings.max():.2f}]")
-
-# 3. 檢查主題標籤
-logging.info("\n3. 主題標籤檢查:")
-logging.info(f"- 標籤數量: {len(topics)}")
-logging.info(f"- 唯一主題數: {len(set(topics))}")
-logging.info(f"- 主題分布: {pd.Series(topics).value_counts().to_string()}")
-
-# 2. start visualize_documents
 print("\n===== 生成文檔視覺化 =====")
 embeddings_cleaned = embedding_model.encode(df['cleaned_content'].tolist(), show_progress_bar=True)
 reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine').fit_transform(embeddings_cleaned)
 
 # 方法1：使用 BERTopic 的 visualize_documents
-try:
-    logging.info("生成 BERTopic 原生視覺化...")
-    
+try:    
     # 添加更多診斷信息
     print("檢查視覺化所需數據：")
     print(f"texts 長度: {len(texts)}")
@@ -343,12 +291,8 @@ try:
     fig_docs_original.write_html(save_path)
     print(f"視覺化文件已保存至: {save_path}")
     
-    logging.info("BERTopic 視覺化完成")
 
-except Exception as e:
-    logging.error(f"BERTopic 視覺化生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
-    
+except Exception as e:    
     # 如果第一種方法失敗，記錄更多診斷信息
     print("\n=== 診斷信息 ===")
     print(f"1. texts 類型: {type(texts)}")
@@ -360,7 +304,6 @@ except Exception as e:
 
 # 方法2：無論上面是否成功，都執行備用方案
 try:
-    logging.info("生成備用視覺化...")
     
     # 獲取降維後的嵌入向量
     reduced_embeddings = topic_model._reduce_dimensionality(embeddings)
@@ -412,10 +355,8 @@ try:
     fig_backup.write_image(f"{visualization_path}/documents_visualization_backup.png", 
                           width=1200, height=800, scale=2)
     
-    logging.info("備用視覺化完成（已生成 HTML 和 PNG 文件）")
 except Exception as e:
-    logging.error(f"備用視覺化生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
+    pass
 
 print(f"所有視覺化結果已保存到 {visualization_path}")
 
@@ -437,40 +378,23 @@ try:
     print("熱圖生成成功")
 except Exception as e:
     print(f"生成熱圖時出錯: {str(e)}")
-    logging.error(f"熱圖生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
 
-# 2. 生成所有主題的整合視覺化
+# 在其他視覺化之後，添加 hierarchical clustering 視覺化
+print("生成主題層次聚類圖...")
 try:
-    # 獲取非雜訊主題列表
-    valid_topics = [topic for topic in topic_info['Topic'].tolist() if topic != -1]
-    
-    # 生成所有主題的詞語排名圖
-    fig_term_rank_all = topic_model.visualize_term_rank(
-        topics=valid_topics,
-        log_scale=True,
-        title="所有主題詞語排名分布",
-        width=1500,
-        height=800
+    # 生成層次聚類圖
+    fig_hierarchical = topic_model.visualize_hierarchy(
+        width=1800,
+        height=1200,
+        title="主題層次結構圖"
     )
-    fig_term_rank_all.write_html(f"{visualization_path}/all_topics_term_rank.html")
     
-    # 生成所有主題的關鍵詞條形圖
-    fig_barchart_all = topic_model.visualize_barchart(
-        topics=valid_topics,
-        n_words=20,
-        title="所有主題關鍵詞分布",
-        width=1500,
-        height=800,
-        custom_labels=custom_labels
-    )
-    fig_barchart_all.write_html(f"{visualization_path}/all_topics_keywords.html")
+    # 保存視覺化結果
+    fig_hierarchical.write_html(f"{visualization_path}/hierarchical_clustering.html")
+    print(f"層次聚類圖已保存至: {visualization_path}/hierarchical_clustering.html")
     
-    print("整合主題視覺化完成")
 except Exception as e:
-    print(f"生成整合主題視覺化時出錯: {str(e)}")
-    logging.error(f"整合主題視覺化生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
+    print(f"生成層次聚類圖時出錯: {str(e)}")
 
 # 在其他視覺化之後，添加 topics over time 的視覺化
 print("生成主題隨時間變化圖...")
@@ -505,6 +429,19 @@ fig_topics_over_time = topic_model.visualize_topics_over_time(
 # 保存視覺化結果
 fig_topics_over_time.write_html(f"{visualization_path}/topics_over_time.html")
 print(f"主題隨時間變化圖已保存至: {visualization_path}/topics_over_time.html")
+
+
+# 2. start visualize_documents
+print("\n===== 生成文檔視覺化 =====")
+embeddings_cleaned = embedding_model.encode(df['cleaned_content'].tolist(), show_progress_bar=True)
+reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine').fit_transform(embeddings_cleaned)
+
+
+print(f"所有視覺化結果已保存到 {visualization_path}")
+
+# 建立包含主題的數據框
+df_with_topics = df.copy()
+df_with_topics['topic'] = topics  # 添加主題標籤
 
 print("\n生成主題分布統計...")
 # 計算主題分布（不含雜訊主題）
@@ -575,7 +512,7 @@ try:
     # 獲取主題比例
     topic_proportions = topic_model.get_topic_info().sort_values("Count", ascending=True)
     
-    # 過濾掉噪音主題（-1）
+    # 過濾掉�聲主題（-1）
     topic_proportions = topic_proportions[topic_proportions['Topic'] != -1]
     
     # 計算主題比例
@@ -622,6 +559,61 @@ try:
     
 except Exception as e:
     print(f"生成主題比例圖時出錯: {str(e)}")
-    logging.error(f"主題比例圖生成失敗: {str(e)}")
-    logging.error(f"詳細錯誤信息:\n{traceback.format_exc()}")
+
+## store the topic_model info to results
+def save_topic_results(topic_model, topic_info, texts, df, topics, base_path="./results/four_categories_v4"):
+    """整合儲存主題相關資訊"""
+    # 確保目錄存在
+    os.makedirs(base_path, exist_ok=True)
+    
+    # 1. 儲存主題分佈資訊
+    topic_info_path = f"{base_path}/topic_info.txt"
+    with open(topic_info_path, "w", encoding="utf-8") as f:
+        f.write("主題分布概況：\n")
+        f.write(topic_info.to_string())
+    print(f"主題資訊已保存至: {topic_info_path}")
+    
+    # 2. 儲存代表性文章
+    representative_docs_path = f"{base_path}/representative_docs.txt"
+    with open(representative_docs_path, "w", encoding="utf-8") as f:
+        for topic in topic_info['Topic'].tolist():
+            if topic == -1:  # 跳過雜訊主題
+                continue
+            
+            representative_docs = topic_model.get_representative_docs(topic)
+            f.write(f"\n主題 {topic} 的代表性文章：\n")
+            
+            for i, doc in enumerate(representative_docs[:]):  
+                original_index = texts.index(doc)
+                original_row = df.iloc[original_index]
+                original_content = original_row['content']
+                article_id = original_row.name
+                
+                f.write(f"文檔 {i+1} (行號: {article_id}):\n")
+                f.write(original_content + "\n")
+                f.write("-" * 50 + "\n")
+    print(f"代表性文章原始內容已保存至: {representative_docs_path}")
+    
+    # 3. 儲存分類結果到 CSV
+    csv_path = f"{base_path}/Kinmen_splitData_with_topics.csv"
+    df_with_topics = df.copy()
+    df_with_topics['topic'] = topics
+    df_with_topics.to_csv(csv_path, index=False, encoding="utf-8-sig")
+    print(f"已將分類結果標示在原始 CSV 文件中，保存至: {csv_path}")
+    
+    # 4. 輸出主要主題的關鍵詞
+    print("\n主要主題的關鍵詞：")
+    for topic in topic_info.head()['Topic'].tolist():
+        if topic != -1:
+            print(f"\n主題 {topic}:")
+            print(topic_model.get_topic(topic))
+
+# 使用範例
+save_topic_results(
+    topic_model=topic_model,
+    topic_info=topic_info,
+    texts=texts,
+    df=df,
+    topics=topics
+)
 
