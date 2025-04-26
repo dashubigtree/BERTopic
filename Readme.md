@@ -379,3 +379,14 @@ HDBSCAN 參數
    - 這就像你決定「群體的邊界要有多嚴格」
    - 調高：群體邊界更嚴格，減少模糊地帶
    - 調低：群體邊界更寬鬆，增加模糊地帶
+
+# 0324 record
+v7當中在儲存representative article的時候，會發現行號對應不上Kinmen_splitData_with_topics.csv的行號。（目前使用新增一行編號欄位來注記那筆資料，讓編號與representative article對應）
+
+- 我在多添加處理重複句子篩選，讓輸入到BERTopic的句子不重複。
+
+# 0426 record
+用新的資料進行強制分組測試，之前我記得我就有讓他去強制分20個左右的主題。
+新增了一個BERTopic_0426.py檔案，為新的資料開啟一個新的python code。
+現在我使用NLP3.10_new來進行BERTopic的訓練。但是發現其中好像缺少BERTopic的套件，而且NLP3.10現在也不能用來訓練BERTopic，所以我現在就將NLP3.10_new and NLP3.10都刪除，創建一個BERTopic的環境。
+- 目前看起來新的資料需要整理一下，是一個整合性的文章csv檔案

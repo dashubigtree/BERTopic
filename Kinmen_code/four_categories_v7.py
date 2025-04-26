@@ -64,7 +64,7 @@ def split_by_sentence(text):
     sentences = re.split(r'(?<=[。！？])', text)
     # 過濾掉空句子
     return [s.strip() for s in sentences if s.strip()]
-
+#以下的code有包含將文章依照句子切割
 # def process_data(df):
 #     """處理資料並依照句子切割"""
 #     result = []
@@ -112,6 +112,7 @@ print(f'總資料筆數: {len(df)}')
 print(f'空字串數量: {(df["content"] == "").sum()}')
 
 
+
 # 保持原有的資料處理流程
 print("清理文本中...")
 df['cleaned_content'] = df['content'].dropna().apply(lambda x: clean_text(x, noise_chars))
@@ -134,9 +135,20 @@ min_tokens = 3  # 設定最小token數量
 df = df[df["tokens"].apply(len) >= min_tokens]
 print(f'過濫短文本後資料筆數: {len(df)}')
 
+print("移除重複句子...")
+initial_len = len(df)
+df = df.drop_duplicates(subset=['content'])
+print(f'移除重複句子後的資料筆數: {len(df)}')
+print(f'移除的重複句子數量: {initial_len - len(df)}')
+
 # 5. 生成最終文本列表
 texts = df["tokens"].apply(lambda x: " ".join(x)).tolist()
-
+# 在清理文本之前先去除重複的句子
+print("移除重複句子...")
+initial_len = len(df)
+df = df.drop_duplicates(subset=['content'])
+print(f'移除重複句子後的資料筆數: {len(df)}')
+print(f'移除的重複句子數量: {initial_len - len(df)}')
 print("設置 BERTopic 模型...")
 # 優化後的模型參數
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -629,47 +641,58 @@ def save_topic_results(topic_model, topic_info, texts, df, topics, base_path="./
     # 確保目錄存在
     os.makedirs(base_path, exist_ok=True)
     
-    # 1. 儲存主題分佈資訊
+    # 1. 先將分類結果儲存到 CSV
+    csv_path = f"{base_path}/Kinmen_splitData_with_topics.csv"
+    df_with_topics = df.copy()
+    df_with_topics['topic'] = topics
+    df_with_topics.to_csv(csv_path, index=True)
+    
+    # 2. 儲存主題分佈資訊
     topic_info_path = f"{base_path}/topic_info.txt"
     with open(topic_info_path, "w", encoding="utf-8") as f:
         f.write("主題分布概況：\n")
         f.write(topic_info.to_string())
-    print(f"主題資訊已保存至: {topic_info_path}")
     
-    # 2. 儲存代表性文章
+    # 3. 儲存代表性文章（修改這部分）
     representative_docs_path = f"{base_path}/representative_docs.txt"
     with open(representative_docs_path, "w", encoding="utf-8") as f:
         for topic in topic_info['Topic'].tolist():
             if topic == -1:  # 跳過雜訊主題
                 continue
             
-            representative_docs = topic_model.get_representative_docs(topic)
             f.write(f"\n主題 {topic} 的代表性文章：\n")
             
-            for i, doc in enumerate(representative_docs[:]):  
-                original_index = texts.index(doc)
-                original_row = df.iloc[original_index]
-                original_content = original_row['content']
-                article_id = original_row.name
+            # 使用正確的方法名稱 get_representative_docs
+            representative_docs = topic_model.get_representative_docs(topic)
+            
+            # 使用 set 來追蹤已經看過的內容
+            seen_contents = set()
+            unique_docs = []
+            
+            # 遍歷所有代表性文檔，只保留內容不重複的
+            for doc in representative_docs:
+                doc_index = texts.index(doc)
+                content = df.iloc[doc_index]['content']
                 
-                f.write(f"文檔 {i+1} (行號: {article_id}):\n")
-                f.write(original_content + "\n")
+                if content not in seen_contents:
+                    seen_contents.add(content)
+                    unique_docs.append((doc_index, content))
+            
+            # 輸出不重複的代表性文檔
+            for i, (doc_index, content) in enumerate(unique_docs[:10]):
+                actual_index = df.index[doc_index]
+                f.write(f"文檔 {i+1} (CSV檔案索引: {actual_index}):\n")
+                f.write(f"{content}\n")
                 f.write("-" * 50 + "\n")
-    print(f"代表性文章原始內容已保存至: {representative_docs_path}")
-    
-    # 3. 儲存分類結果到 CSV
-    csv_path = f"{base_path}/Kinmen_splitData_with_topics.csv"
-    df_with_topics = df.copy()
-    df_with_topics['topic'] = topics
-    df_with_topics.to_csv(csv_path, index=False, encoding="utf-8-sig")
-    print(f"已將分類結果標示在原始 CSV 文件中，保存至: {csv_path}")
     
     # 4. 輸出主要主題的關鍵詞
-    print("\n主要主題的關鍵詞：")
-    for topic in topic_info.head()['Topic'].tolist():
-        if topic != -1:
-            print(f"\n主題 {topic}:")
-            print(topic_model.get_topic(topic))
+    keywords_path = f"{base_path}/topic_keywords.txt"
+    with open(keywords_path, "w", encoding="utf-8") as f:
+        for topic in topic_info['Topic'].tolist():
+            if topic != -1:
+                f.write(f"\n主題 {topic} 關鍵詞:\n")
+                keywords = topic_model.get_topic(topic)
+                f.write(str(keywords) + "\n")
 
 # 使用範例
 save_topic_results(
