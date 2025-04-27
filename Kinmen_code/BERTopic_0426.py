@@ -59,10 +59,10 @@ print(f'清理後資料筆數: {len(df)}')
 print("進行分詞和預處理...")
 df["tokens"] = df["cleaned_content"].apply(preprocess_text)
 
-# 過濾過短文本
+# 過濫短文本
 min_tokens = 3
 df = df[df["tokens"].apply(len) >= min_tokens]
-print(f'過濾短文本後資料筆數: {len(df)}')
+print(f'過濫短文本後資料筆數: {len(df)}')
 
 # 轉換為文本格式
 texts = df["tokens"].apply(lambda x: " ".join(x)).tolist()
@@ -70,15 +70,25 @@ texts = df["tokens"].apply(lambda x: " ".join(x)).tolist()
 print("設置 BERTopic 模型...")
 embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 umap_model = UMAP(n_neighbors=15, n_components=2, metric='cosine', min_dist=0.05, random_state=42)
-hdbscan_model = HDBSCAN(min_cluster_size=35, min_samples=5, metric='euclidean', cluster_selection_method='eom', prediction_data=True, alpha=0.5)
+hdbscan_model = HDBSCAN(min_cluster_size=2, min_samples=5, metric='euclidean', cluster_selection_method='eom', prediction_data=True, alpha=0.5)
 vectorizer = CountVectorizer(ngram_range=(1, 1), stop_words=None, max_features=15000, max_df=0.9, min_df=3)
 ctfidf_model = ClassTfidfTransformer(
-    # seed_words=[
-    #     "条约", "防御", "执法", "金门",
-    #     "两岸", "事件", "协议", "海域",
-    #     "鱼权", "渔业", "经济", "台湾",
-    #     "中国", "海巡", "大陆", "国民党"
-    # ],
+    seed_words=[
+        "初级制度", "关键词",
+        "权力平衡", "联盟", "平衡",
+        "发展", "社会进步", "人类进步", "物质进步",
+        "外交", "双边会议", "外交", "外交的", "使者", "多边", "外交语言", "大会",
+        "人类平等", "种族隔离", "殖民地", "性别平等", "种族的", "种族主义", "种族主义者", "性别", "前领土", "附属地", "海外领地", "殖民地",
+        "国际法", "宪章", "公约", "法院", "法律", "具有法律约束力的文件", "议定书", "条约", "仲裁",
+        "民族主义", "民族主义者", "自决", "民族自决", "民族主义", "人民主权",
+        "主权", "独立", "不干涉", "不干预", "主权", "国家责任",
+        "领土性", "边界", "疆界", "领土的", "领土",
+        "市场", "经济的", "经济", "贸易", "经济一体化", "保护主义", "贸易壁垒", "关税", "市场",
+        "战争", "战争", "使用武力", "进攻", "防御", "侵略", "防卫", "自卫",
+        "民主", "民主", "民主的", "议会", "议会的", "少数派", "投票", "选举", "集会自由", "少数派权利",
+        "环境管理", "气候变化", "生态平衡", "环境的", "保护环境", "环境保护", "排放", "全球变暖", "森林砍伐", "海平面", "温室效应",
+        "人权", "人权", "酷刑", "言论自由", "奴役", "奴隶制", "监禁", "种族灭绝", "权利"
+    ],
     bm25_weighting=True,
     reduce_frequent_words=True
 )
