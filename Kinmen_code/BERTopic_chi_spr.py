@@ -11,6 +11,8 @@ from bertopic.vectorizers import ClassTfidfTransformer
 import numpy as np
 import plotly.io as pio
 import os
+import plotly.express as px
+import matplotlib.pyplot as plt
 
 # 定義噪音字元集合
 noise_chars = {'zvx','💎', '。', '▲', '△', '🔍', '？', '—', '<', '∶', '\r', '；', '✦', '\u200c', '️', '－', '℃', '‖', '!', '「', '→', '/', '║', '」', '@', '，', '?', "'", '○', '）', '『', '．', '👉', '】', '🌟', '=', '👇', '‰', '【', ';', '#', ')', '：', '\u200d', '❖', '~', ']', '%', '·', '↑', '（', '〕', '☆', '※', '&', '•', '👍', '>', '／', '▌', '–', '↓', '[', ''', ':', '《', '▎', '🤝', '©', '+', '🌊', '\xa0', '\n', '◇', ',', '◎', '…', '(', '〔', '\\', '"', '■', '｜', '─', '\u200b', '-', '●', '"', '▊', '、', '︱', ''', '*', '⭐', '》', '％', '！', '〉', '|', '▼', '👆', '🏡', '°', '\t', '』', '〈', '～', '◆', '.', '⬆', '"'}
@@ -70,24 +72,11 @@ texts = df["tokens"].apply(lambda x: " ".join(x)).tolist()
 print("設置 BERTopic 模型...")
 embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 umap_model = UMAP(n_neighbors=15, n_components=2, metric='cosine', min_dist=0.05, random_state=42)
-hdbscan_model = HDBSCAN(min_cluster_size=2, min_samples=5, metric='euclidean', cluster_selection_method='eom', prediction_data=True, alpha=0.5)
+hdbscan_model = HDBSCAN(min_cluster_size=10, min_samples=5, metric='euclidean', cluster_selection_method='eom', prediction_data=True, alpha=0.5)
 vectorizer = CountVectorizer(ngram_range=(1, 1), stop_words=None, max_features=15000, max_df=0.9, min_df=3)
 ctfidf_model = ClassTfidfTransformer(
     seed_words=[
-        "初级制度", "关键词",
-        "权力平衡", "联盟", "平衡",
-        "发展", "社会进步", "人类进步", "物质进步",
-        "外交", "双边会议", "外交", "外交的", "使者", "多边", "外交语言", "大会",
-        "人类平等", "种族隔离", "殖民地", "性别平等", "种族的", "种族主义", "种族主义者", "性别", "前领土", "附属地", "海外领地", "殖民地",
-        "国际法", "宪章", "公约", "法院", "法律", "具有法律约束力的文件", "议定书", "条约", "仲裁",
-        "民族主义", "民族主义者", "自决", "民族自决", "民族主义", "人民主权",
-        "主权", "独立", "不干涉", "不干预", "主权", "国家责任",
-        "领土性", "边界", "疆界", "领土的", "领土",
-        "市场", "经济的", "经济", "贸易", "经济一体化", "保护主义", "贸易壁垒", "关税", "市场",
-        "战争", "战争", "使用武力", "进攻", "防御", "侵略", "防卫", "自卫",
-        "民主", "民主", "民主的", "议会", "议会的", "少数派", "投票", "选举", "集会自由", "少数派权利",
-        "环境管理", "气候变化", "生态平衡", "环境的", "保护环境", "环境保护", "排放", "全球变暖", "森林砍伐", "海平面", "温室效应",
-        "人权", "人权", "酷刑", "言论自由", "奴役", "奴隶制", "监禁", "种族灭绝", "权利"
+        "权力平衡", "发展", "外交", "人类平等", "国际法", "民族主义", "主权", "领土性", "市场", "战争", "民主", "环境管理", "人权"
     ],
     bm25_weighting=True,
     reduce_frequent_words=True
@@ -118,9 +107,163 @@ model_save_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen
 topic_model.save(model_save_path)
 print(f"模型已儲存至: {model_save_path}")
 
+# 客製化topic labels name
+custom_labels = {
+    -1: "topic -1 test",
+    1: "topic 1 test",
+    0: "topic 0 test",
+    2: "topic 2 test",
+    3: "topic 3 test",
+    4: "topic 4 test",
+    5: "topic 5 test",
+    6: "topic 6 test",
+    7: "topic 7 test",
+    8: "topic 8 test",
+    9: "topic 9 test",
+    10: "topic 10 test",
+    11: "topic 11 test",
+    12: "topic 12 test",
+    13: "topic 13 test",
+    14: "topic 14 test",
+    15: "topic 15 test",
+    16: "topic 16 test",
+    17: "topic 17 test",
+    18: "topic 18 test",
+    19: "topic 19 test",
+    20:"topic  20 test",
+    21:"topic  21 test",
+    22:"topic  22 test",
+    23:"topic  23 test",
+    24:"topic  24 test",
+    25:"topic  25 test",
+}
+
+# 設置自定義標籤
+topic_model.set_topic_labels(custom_labels)
+print(f"模型已儲存至: {model_save_path}")
+
 # 視覺化分析
 visualization_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/visualization/chi_sp_20240119"
 os.makedirs(visualization_path, exist_ok=True)
+
+# 1. 文章主題分布的備用方案（降維後散點圖）
+try:
+    reduced_embeddings = topic_model._reduce_dimensionality(embeddings)
+    # 取得每個主題的前五個關鍵詞
+    def get_top5_keywords(topic_id):
+        if topic_id in topic_model.get_topics():
+            return ", ".join([word for word, _ in topic_model.get_topic(topic_id)[:5]])
+        else:
+            return ""
+    keywords_list = [get_top5_keywords(t) for t in topics]
+    viz_df = pd.DataFrame({
+        'x': reduced_embeddings[:, 0],
+        'y': reduced_embeddings[:, 1],
+        'topic': [custom_labels.get(t, f"Topic {t}") for t in topics],  # 使用自定義標籤
+        'text': texts,
+        'keywords': keywords_list
+    })
+    fig_backup = px.scatter(
+        viz_df,
+        x='x',
+        y='y',
+        color='topic',
+        hover_data=['text'],
+        title='文檔主題分布圖（備用方案）',
+        opacity=0.8,
+        color_discrete_sequence=px.colors.qualitative.Set3,
+        width=1200,
+        height=800,
+        labels={'topic': '主題分類'}
+    )
+    fig_backup.update_traces(marker=dict(size=7), 
+                             showlegend=True)
+    fig_backup.update_layout(
+        legend_title_text='主題分類',
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=1.02,
+            title_font=dict(size=16),
+            font=dict(size=14)
+        )
+    )
+    fig_backup.write_html(f"{visualization_path}/documents_visualization_backup.html")
+    fig_backup.write_image(f"{visualization_path}/documents_visualization_backup.png", width=1200, height=800, scale=2)
+    print("備用主題分布圖已保存")
+except Exception as e:
+    print(f"備用主題分布圖生成失敗: {e}")
+
+# 2. 主題分佈比例（每個主題群組中的文章數量佔總文章數量的百分比）
+try:
+    topic_counts = pd.Series(topics).value_counts(normalize=True).sort_index()
+    topic_percent = (topic_counts * 100).round(2)
+    plt.figure(figsize=(12, 6))
+    topic_percent.plot(kind='bar')
+    plt.title('主題分佈比例（百分比）')
+    plt.xlabel('主題')
+    plt.ylabel('百分比 (%)')
+    plt.tight_layout()
+    plt.savefig(f"{visualization_path}/topic_distribution_percentage.png")
+    plt.close()
+    print("主題分佈比例圖已保存")
+except Exception as e:
+    print(f"主題分佈比例圖生成失敗: {e}")
+
+# 3. topic over time
+timestamps = df['date'].tolist()
+
+# 生成主題隨時間變化圖
+topics_over_time = topic_model.topics_over_time(
+    docs=texts,
+    timestamps=timestamps,
+    global_tuning=True,
+    evolution_tuning=True,
+    nr_bins=20,
+)
+
+# 創建視覺化
+fig_topics_over_time = topic_model.visualize_topics_over_time(
+    topics_over_time,
+    top_n_topics=None,
+    width=1200,
+    height=600
+)
+
+# 保存視覺化結果
+fig_topics_over_time.write_html(f"{visualization_path}/topics_over_time.html")
+print(f"主題隨時間變化圖已保存至: {visualization_path}/topics_over_time.html")
+
+# 4. 所有主題的關鍵詞分布（條形圖）
+try:
+    topic_info = topic_model.get_topic_info()
+    valid_topics = [topic for topic in topic_info['Topic'].tolist() if topic != -1]
+    fig_barchart_all = topic_model.visualize_barchart(
+        topics=valid_topics,
+        title="所有主題關鍵詞分布",
+        n_words=20,
+        autoscale=True,
+    )
+    fig_barchart_all.write_html(f"{visualization_path}/all_topics_keywords.html")
+    print("所有主題關鍵詞分布圖已保存")
+except Exception as e:
+    print(f"所有主題關鍵詞分布圖生成失敗: {e}")
+
+# 5. 所有主題詞與排名分布（ctf-idf score with log scale）
+try:
+    fig_term_rank_all = topic_model.visualize_term_rank(
+        log_scale=True,
+        title="所有主題詞語排名分布",
+        width=1500,
+        height=800
+    )
+    fig_term_rank_all.write_html(f"{visualization_path}/all_topics_term_rank.html")
+    print("所有主題詞語排名分布圖已保存")
+except Exception as e:
+    print(f"所有主題詞語排名分布圖生成失敗: {e}")
+
+print("所有自訂視覺化已完成並保存至 visualization/chi_sp_20240119 資料夾")
 
 fig_topics = topic_model.visualize_topics(width=1200, height=1000)
 fig_topics.write_html(f"{visualization_path}/topics_visualization.html")
@@ -158,3 +301,56 @@ df_with_topics['topic_keywords'] = df_with_topics['topic'].apply(get_topic_keywo
 output_path = "/Users/shuyuhsu/code_workspace/Kinmen_wechat_BERTTopic/Kinmen_code/data/chi_sp_20240119_parag_with_topics.csv"
 df_with_topics.to_csv(output_path, index=False, encoding="utf-8-sig")
 print(f"已將主題標籤加入資料集並儲存至: {output_path}")
+
+# 生成主題比例圖
+try:
+    # 獲取主題比例
+    topic_proportions = topic_model.get_topic_info().sort_values("Count", ascending=True)
+    
+    # 過濾掉雜訊主題（-1）
+    topic_proportions = topic_proportions[topic_proportions['Topic'] != -1]
+    
+    # 計算主題比例
+    total_docs = topic_proportions['Count'].sum()
+    topic_proportions['Proportion'] = topic_proportions['Count'] / total_docs
+    
+    # 為每個主題獲取關鍵詞
+    topic_labels = []
+    for topic in topic_proportions['Topic']:
+        # 獲取前10個關鍵詞
+        words = [word for word, _ in topic_model.get_topic(topic)[:10]]
+        label = ', '.join(words)
+        topic_labels.append(f"Topic {topic}: {label}")
+    
+    # 創建比例圖
+    fig = px.bar(
+        topic_proportions,
+        x="Proportion",  # 改用比例作為 X 軸
+        y="Topic",
+        orientation='h',
+        title="主題分布比例",
+        labels={"Proportion": "主題比例", "Topic": "主題"},  # 更新標籤
+        text="Proportion"  # 顯示比例值
+    )
+    
+    # 更新圖表樣式
+    fig.update_traces(
+        textposition='outside',
+        texttemplate='%{text:.1%}',  # 將比例格式化為百分比
+        marker_color='lightblue'
+    )
+    
+    fig.update_layout(
+        height=800,  # 增加高度以容納所有主題
+        yaxis={'ticktext': topic_labels, 'tickvals': topic_proportions['Topic']},
+        showlegend=False,
+        margin=dict(l=400),  # 增加左邊距以顯示完整的主題標籤
+        xaxis_tickformat=',.0%'  # X 軸刻度以百分比格式顯示
+    )
+    
+    # 保存圖表
+    fig.write_html(f"{visualization_path}/topic_proportions.html")
+    print(f"主題比例圖已保存至: {visualization_path}/topic_proportions.html")
+    
+except Exception as e:
+    print(f"生成主題比例圖時出錯: {str(e)}")
